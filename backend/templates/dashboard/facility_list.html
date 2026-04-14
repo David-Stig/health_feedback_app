@@ -1,0 +1,42 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Facilities{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Facilities</p>
+            <h1>Manage health facilities</h1>
+        </div>
+        <a class="button-primary" href="{% url 'dashboard:facility_create' %}">Add facility</a>
+    </div>
+
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>District</th>
+                    <th>Province</th>
+                    <th>QR Code</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for facility in facilities %}
+                    <tr>
+                        <td>{{ facility.name }}</td>
+                        <td>{{ facility.district }}</td>
+                        <td>{{ facility.province }}</td>
+                        <td>{% if facility.qr_code %}<a href="{% url 'facilities:download_qr' facility.pk %}">Download</a>{% else %}-{% endif %}</td>
+                        <td><a href="{% url 'dashboard:facility_detail' facility.pk %}">View</a> | <a href="{% url 'dashboard:facility_update' facility.pk %}">Edit</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">No facilities yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

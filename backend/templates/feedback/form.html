@@ -1,0 +1,74 @@
+{% extends "public_base.html" %}
+
+{% block title %}Submit Feedback{% endblock %}
+{% block body_class %}public-feedback-body{% endblock %}
+{% block page_class %}public-feedback-page{% endblock %}
+
+{% block content %}
+<section class="feedback-hero">
+    <div class="feedback-intro">
+        <p class="eyebrow">Anonymous Feedback</p>
+        <h1>Help improve your health facility visit</h1>
+        <p class="subtle">This form is anonymous and should take less than 10 seconds to complete.</p>
+        {% if selected_facility %}
+            <div class="highlight-card">
+                <strong>Detected facility:</strong> {{ selected_facility.name }}<br>
+                <span>{{ selected_facility.district }}, {{ selected_facility.province }}</span>
+            </div>
+        {% endif %}
+    </div>
+
+    <form method="post" class="feedback-card">
+        {% csrf_token %}
+        {{ form.honeypot }}
+        {% if form.non_field_errors %}
+            <div class="message error">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <label>
+            Facility
+            {{ form.facility }}
+            {{ form.facility.errors }}
+        </label>
+
+        <fieldset>
+            <legend>Service rating</legend>
+            <div class="rating-group">
+                {% for radio in form.rating %}
+                    <label class="rating-option">
+                        {{ radio.tag }}
+                        <span>{{ radio.choice_label }}</span>
+                    </label>
+                {% endfor %}
+            </div>
+            {{ form.rating.errors }}
+        </fieldset>
+
+        <label>
+            Category
+            {{ form.category }}
+            {{ form.category.errors }}
+        </label>
+
+        <label>
+            Comment (optional)
+            {{ form.comment }}
+            {{ form.comment.errors }}
+        </label>
+
+        <div class="grid-two">
+            <label>
+                Age group (optional)
+                {{ form.age_group }}
+            </label>
+            <label>
+                Gender (optional)
+                {{ form.gender }}
+            </label>
+        </div>
+
+        <button type="submit" class="button-primary button-full">Submit feedback</button>
+        <p class="privacy-note">No personally identifiable information is collected.</p>
+    </form>
+</section>
+{% endblock %}

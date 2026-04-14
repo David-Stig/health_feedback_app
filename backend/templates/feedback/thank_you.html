@@ -1,0 +1,12 @@
+{% extends "public_base.html" %}
+
+{% block title %}Thank You{% endblock %}
+
+{% block content %}
+<section class="center-card">
+    <p class="eyebrow">Feedback Received</p>
+    <h1>Thank you for your feedback.</h1>
+    <p class="subtle">Your anonymous response has been recorded and will help improve health service delivery.</p>
+    <a class="button-primary" href="{% url 'feedback:submit' %}">Submit another response</a>
+</section>
+{% endblock %}

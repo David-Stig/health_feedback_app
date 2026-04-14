@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Health Facility Feedback System{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <header class="site-header">
+        <div class="container header-shell">
+            <a class="brand" href="{% url 'feedback:submit' %}">Health Facility Feedback System</a>
+            {% block header_nav %}{% endblock %}
+        </div>
+    </header>
+
+    <main class="container page-shell {% block page_class %}{% endblock %}">
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="message {{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

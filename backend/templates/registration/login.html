@@ -1,0 +1,26 @@
+{% extends "public_base.html" %}
+
+{% block title %}Admin Login | Health Facility Feedback System{% endblock %}
+
+{% block content %}
+<section class="auth-card">
+    <div>
+        <p class="eyebrow">Secure Dashboard</p>
+        <h1>Admin login</h1>
+        <p class="subtle">Use your staff account to manage facilities, review submissions, and export reports.</p>
+    </div>
+    <form method="post" class="stack">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <label>
+            Username
+            {{ form.username }}
+        </label>
+        <label>
+            Password
+            {{ form.password }}
+        </label>
+        <button type="submit" class="button-primary">Sign in</button>
+    </form>
+</section>
+{% endblock %}

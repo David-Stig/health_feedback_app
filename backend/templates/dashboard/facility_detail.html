@@ -1,0 +1,32 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Facility Details{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Facility Details</p>
+            <h1>{{ facility.name }}</h1>
+            <p class="subtle">{{ facility.district }}, {{ facility.province }}</p>
+        </div>
+        <a class="button-secondary" href="{% url 'dashboard:facility_update' facility.pk %}">Edit facility</a>
+    </div>
+
+    <div class="detail-grid">
+        <article class="info-card">
+            <h2>Feedback link</h2>
+            <p><a href="{{ facility.get_feedback_url }}">{{ facility.get_feedback_url }}</a></p>
+        </article>
+        <article class="info-card">
+            <h2>QR code</h2>
+            {% if facility.qr_code %}
+                <img class="qr-preview" src="{{ facility.qr_code.url }}" alt="QR code for {{ facility.name }}">
+                <a class="button-secondary" href="{% url 'facilities:download_qr' facility.pk %}">Download QR</a>
+            {% else %}
+                <p>QR code not available.</p>
+            {% endif %}
+        </article>
+    </div>
+</section>
+{% endblock %}

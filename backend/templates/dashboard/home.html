@@ -1,0 +1,116 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="dashboard-header">
+    <div>
+        <p class="eyebrow">Admin Dashboard</p>
+        <h1>Feedback analytics overview</h1>
+    </div>
+    <div class="stat-grid">
+        <div class="stat-card">
+            <span>Total submissions</span>
+            <strong>{{ total_submissions }}</strong>
+        </div>
+        <div class="stat-card">
+            <span>Facilities</span>
+            <strong>{{ facility_count }}</strong>
+        </div>
+        <div class="stat-card">
+            <span>Average rating</span>
+            <strong>{{ average_rating }}</strong>
+        </div>
+    </div>
+</section>
+
+<section class="chart-grid">
+    <article class="panel">
+        <h2>Complaints by category</h2>
+        <canvas id="categoryChart"></canvas>
+    </article>
+    <article class="panel">
+        <h2>Submissions over time</h2>
+        <canvas id="trendChart"></canvas>
+    </article>
+    <article class="panel">
+        <h2>Category distribution</h2>
+        <canvas id="provinceChart"></canvas>
+    </article>
+</section>
+
+<section class="table-grid">
+    <article class="panel">
+        <h2>Top facilities</h2>
+        <table class="data-table">
+            <thead><tr><th>Facility</th><th>Submissions</th></tr></thead>
+            <tbody>
+                {% for item in facility_breakdown %}
+                    <tr><td>{{ item.facility__name }}</td><td>{{ item.total }}</td></tr>
+                {% empty %}
+                    <tr><td colspan="2">No feedback submitted yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+    <article class="panel">
+        <h2>Province summary</h2>
+        <table class="data-table">
+            <thead><tr><th>Province</th><th>Submissions</th></tr></thead>
+            <tbody>
+                {% for item in province_breakdown %}
+                    <tr><td>{{ item.facility__province }}</td><td>{{ item.total }}</td></tr>
+                {% empty %}
+                    <tr><td colspan="2">No province data available.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+</section>
+
+{{ trend_labels|json_script:"trend-labels" }}
+{{ trend_totals|json_script:"trend-totals" }}
+{{ trend_ratings|json_script:"trend-ratings" }}
+{{ category_labels|json_script:"category-labels" }}
+{{ category_totals|json_script:"category-totals" }}
+
+<script>
+    const trendLabels = JSON.parse(document.getElementById("trend-labels").textContent);
+    const trendTotals = JSON.parse(document.getElementById("trend-totals").textContent);
+    const trendRatings = JSON.parse(document.getElementById("trend-ratings").textContent);
+    const categoryLabels = JSON.parse(document.getElementById("category-labels").textContent);
+    const categoryTotals = JSON.parse(document.getElementById("category-totals").textContent);
+    new Chart(document.getElementById("categoryChart"), {
+        type: "bar",
+        data: {
+            labels: categoryLabels,
+            datasets: [{ label: "Submissions", data: categoryTotals, backgroundColor: "#14746f" }]
+        }
+    });
+
+    new Chart(document.getElementById("trendChart"), {
+        type: "line",
+        data: {
+            labels: trendLabels,
+            datasets: [
+                { label: "Submissions", data: trendTotals, borderColor: "#2d6a4f", tension: 0.3, yAxisID: "y" },
+                { label: "Average rating", data: trendRatings, borderColor: "#f0b429", tension: 0.3, yAxisID: "y1" }
+            ]
+        },
+        options: {
+            scales: {
+                y: { beginAtZero: true, position: "left" },
+                y1: { beginAtZero: true, position: "right", min: 0, max: 5, grid: { drawOnChartArea: false } }
+            }
+        }
+    });
+
+    new Chart(document.getElementById("provinceChart"), {
+        type: "pie",
+        data: {
+            labels: categoryLabels,
+            datasets: [{ data: categoryTotals, backgroundColor: ["#0f4c5c", "#2c7da0", "#468faf", "#89c2d9", "#a9d6e5", "#f0b429", "#ef476f"] }]
+        }
+    });
+</script>
+{% endblock %}

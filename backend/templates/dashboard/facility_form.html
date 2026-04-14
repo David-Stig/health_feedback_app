@@ -1,0 +1,15 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Facility Form{% endblock %}
+
+{% block content %}
+<section class="panel form-panel">
+    <p class="eyebrow">Facilities</p>
+    <h1>{% if object %}Edit facility{% else %}Add facility{% endif %}</h1>
+    <form method="post" class="stack">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="button-primary">{% if object %}Save changes{% else %}Create facility{% endif %}</button>
+    </form>
+</section>
+{% endblock %}

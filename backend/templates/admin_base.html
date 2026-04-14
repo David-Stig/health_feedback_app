@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block header_nav %}
+<nav class="site-nav">
+    <a href="{% url 'dashboard:home' %}">Dashboard</a>
+    <a href="{% url 'dashboard:facility_list' %}">Facilities</a>
+    <a href="{% url 'dashboard:feedback_list' %}">Submissions</a>
+    <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="link-button">Sign out</button>
+    </form>
+</nav>
+{% endblock %}
