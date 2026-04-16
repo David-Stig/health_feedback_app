@@ -10,10 +10,14 @@
         <p class="eyebrow">Anonymous Feedback</p>
         <h1>Help improve your health facility visit</h1>
         <p class="subtle">This form is anonymous and should take less than 10 seconds to complete.</p>
+
         {% if selected_facility %}
             <div class="highlight-card">
                 <strong>Detected facility:</strong> {{ selected_facility.name }}<br>
-                <span>{{ selected_facility.district }}, {{ selected_facility.province }}</span>
+                <span>
+                    {% if selected_facility.district %}{{ selected_facility.district }}{% endif %}
+                    {% if selected_facility.province %}, {{ selected_facility.province }}{% endif %}
+                </span>
             </div>
         {% endif %}
     </div>
@@ -21,8 +25,11 @@
     <form method="post" class="feedback-card">
         {% csrf_token %}
         {{ form.honeypot }}
+
         {% if form.non_field_errors %}
-            <div class="message error">{{ form.non_field_errors }}</div>
+            <div class="message error">
+                {{ form.non_field_errors }}
+            </div>
         {% endif %}
 
         <label>
@@ -31,24 +38,32 @@
             {{ form.facility.errors }}
         </label>
 
-        <fieldset>
-            <legend>Service rating</legend>
-            <div class="rating-group">
-                {% for radio in form.rating %}
-                    <label class="rating-option">
-                        {{ radio.tag }}
-                        <span>{{ radio.choice_label }}</span>
-                    </label>
-                {% endfor %}
-            </div>
-            {{ form.rating.errors }}
-        </fieldset>
+        <fieldset class="service-ratings-fieldset">
+            <legend>Rate each service area</legend>
 
-        <label>
-            Category
-            {{ form.category }}
-            {{ form.category.errors }}
-        </label>
+            {% for category_value, category_label in categories %}
+                <div class="category-rating-row">
+                    <div class="category-name">{{ category_label }}</div>
+
+                    <div class="star-rating">
+                        <input type="radio" id="cat_{{ forloop.counter }}_5" name="rating_{{ category_value }}" value="5">
+                        <label for="cat_{{ forloop.counter }}_5" title="5 stars">★</label>
+
+                        <input type="radio" id="cat_{{ forloop.counter }}_4" name="rating_{{ category_value }}" value="4">
+                        <label for="cat_{{ forloop.counter }}_4" title="4 stars">★</label>
+
+                        <input type="radio" id="cat_{{ forloop.counter }}_3" name="rating_{{ category_value }}" value="3">
+                        <label for="cat_{{ forloop.counter }}_3" title="3 stars">★</label>
+
+                        <input type="radio" id="cat_{{ forloop.counter }}_2" name="rating_{{ category_value }}" value="2">
+                        <label for="cat_{{ forloop.counter }}_2" title="2 stars">★</label>
+
+                        <input type="radio" id="cat_{{ forloop.counter }}_1" name="rating_{{ category_value }}" value="1">
+                        <label for="cat_{{ forloop.counter }}_1" title="1 star">★</label>
+                    </div>
+                </div>
+            {% endfor %}
+        </fieldset>
 
         <label>
             Comment (optional)
@@ -60,10 +75,13 @@
             <label>
                 Age group (optional)
                 {{ form.age_group }}
+                {{ form.age_group.errors }}
             </label>
+
             <label>
                 Gender (optional)
                 {{ form.gender }}
+                {{ form.gender.errors }}
             </label>
         </div>
 
@@ -71,4 +89,90 @@
         <p class="privacy-note">No personally identifiable information is collected.</p>
     </form>
 </section>
+
+<style>
+.service-ratings-fieldset {
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 1.2rem;
+    margin: 1.2rem 0;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.category-rating-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.2s ease;
+    border-radius: 10px;
+}
+
+.category-rating-row:hover {
+    background: #f9fafb;
+}
+
+.category-rating-row:last-child {
+    border-bottom: none;
+}
+
+.category-name {
+    font-weight: 600;
+    color: #1f2937;
+    min-width: 180px;
+    font-size: 0.95rem;
+}
+
+.star-rating {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    gap: 0.15rem;
+}
+
+.star-rating input {
+    display: none;
+}
+
+.star-rating label {
+    font-size: 2.2rem;
+    color: #d1d5db;
+    cursor: pointer;
+    transition: transform 0.15s ease, color 0.2s ease;
+    line-height: 1;
+}
+
+.star-rating label:hover {
+    transform: scale(1.15);
+}
+
+.star-rating label:hover,
+.star-rating label:hover ~ label,
+.star-rating input:checked ~ label {
+    color: #fbbf24;
+}
+
+.star-rating input:checked ~ label {
+    text-shadow: 0 0 6px rgba(251, 191, 36, 0.4);
+}
+
+@media (max-width: 768px) {
+    .category-rating-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.6rem;
+    }
+
+    .category-name {
+        min-width: auto;
+        font-size: 1rem;
+    }
+
+    .star-rating label {
+        font-size: 2rem;
+    }
+}
+</style>
 {% endblock %}
