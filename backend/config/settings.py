@@ -73,7 +73,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "config.wsgi.application"
+WSGI_APPLICATION = "health_feedback_app.wsgi.application"
 
 DATABASES = {
     "default": {
