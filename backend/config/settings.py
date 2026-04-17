@@ -12,8 +12,8 @@ def env_list(name: str, default: str = "") -> list[str]:
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() == "true"
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost")
-CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
+ALLOWED_HOSTS = ALLOWED_HOSTS = ["13.61.173.250"]
+CSRF_TRUSTED_ORIGINS =[]
 SITE_URL = os.getenv("SITE_URL", "http://localhost:8000")
 SECURE_SSL_REDIRECT = os.getenv("DJANGO_SECURE_SSL_REDIRECT", "False").lower() == "true"
 SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
