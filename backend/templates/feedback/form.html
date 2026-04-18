@@ -61,7 +61,7 @@
                         <input type="radio" id="cat_{{ forloop.counter }}_1" name="rating_{{ category_value }}" value="1">
                         <label for="cat_{{ forloop.counter }}_1" title="1 star">★</label>
                     </div>
-                </div>
+               
             
         </fieldset>
 
@@ -70,6 +70,7 @@
             {{ form.comment }}
             {{ form.comment.errors }}
         </label>
+         </div>
 {% endfor %}
         <div class="grid-two">
             <label>
