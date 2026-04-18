@@ -43,35 +43,40 @@
 
             {% for category_value, category_label in categories %}
                 <div class="category-rating-row">
-                    <div class="category-name">{{ category_label }}</div>
+                    <div class="rating-section">
+                        <div class="category-name">{{ category_label }}</div>
 
-                    <div class="star-rating">
-                        <input type="radio" id="cat_{{ forloop.counter }}_5" name="rating_{{ category_value }}" value="5">
-                        <label for="cat_{{ forloop.counter }}_5" title="5 stars">★</label>
+                        <div class="star-rating">
+                            <input type="radio" id="cat_{{ forloop.counter }}_5" name="rating_{{ category_value }}" value="5">
+                            <label for="cat_{{ forloop.counter }}_5" title="5 stars">★</label>
 
-                        <input type="radio" id="cat_{{ forloop.counter }}_4" name="rating_{{ category_value }}" value="4">
-                        <label for="cat_{{ forloop.counter }}_4" title="4 stars">★</label>
+                            <input type="radio" id="cat_{{ forloop.counter }}_4" name="rating_{{ category_value }}" value="4">
+                            <label for="cat_{{ forloop.counter }}_4" title="4 stars">★</label>
 
-                        <input type="radio" id="cat_{{ forloop.counter }}_3" name="rating_{{ category_value }}" value="3">
-                        <label for="cat_{{ forloop.counter }}_3" title="3 stars">★</label>
+                            <input type="radio" id="cat_{{ forloop.counter }}_3" name="rating_{{ category_value }}" value="3">
+                            <label for="cat_{{ forloop.counter }}_3" title="3 stars">★</label>
 
-                        <input type="radio" id="cat_{{ forloop.counter }}_2" name="rating_{{ category_value }}" value="2">
-                        <label for="cat_{{ forloop.counter }}_2" title="2 stars">★</label>
+                            <input type="radio" id="cat_{{ forloop.counter }}_2" name="rating_{{ category_value }}" value="2">
+                            <label for="cat_{{ forloop.counter }}_2" title="2 stars">★</label>
 
-                        <input type="radio" id="cat_{{ forloop.counter }}_1" name="rating_{{ category_value }}" value="1">
-                        <label for="cat_{{ forloop.counter }}_1" title="1 star">★</label>
+                            <input type="radio" id="cat_{{ forloop.counter }}_1" name="rating_{{ category_value }}" value="1">
+                            <label for="cat_{{ forloop.counter }}_1" title="1 star">★</label>
+                        </div>
                     </div>
-               
-            
+
+                    <div class="comment-section">
+                        <label for="comment_{{ category_value }}" class="comment-label">Comment (optional)</label>
+                        <textarea
+                            id="comment_{{ category_value }}"
+                            name="comment_{{ category_value }}"
+                            class="category-comment"
+                            placeholder="Write a short comment..."
+                        ></textarea>
+                    </div>
+                </div>
+            {% endfor %}
         </fieldset>
 
-        <label>
-            Comment (optional)
-            {{ form.comment }}
-            {{ form.comment.errors }}
-        </label>
-         </div>
-{% endfor %}
         <div class="grid-two">
             <label>
                 Age group (optional)
@@ -101,11 +106,17 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
+.service-ratings-fieldset legend {
+    font-weight: 700;
+    color: #111827;
+    padding: 0 0.4rem;
+}
+
 .category-rating-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    align-items: start;
     padding: 1rem 0.5rem;
     border-bottom: 1px solid #f1f5f9;
     transition: background 0.2s ease;
@@ -120,16 +131,22 @@
     border-bottom: none;
 }
 
+.rating-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
 .category-name {
     font-weight: 600;
     color: #1f2937;
-    min-width: 180px;
     font-size: 0.95rem;
 }
 
 .star-rating {
     display: inline-flex;
     flex-direction: row-reverse;
+    justify-content: flex-end;
     gap: 0.15rem;
 }
 
@@ -159,20 +176,53 @@
     text-shadow: 0 0 6px rgba(251, 191, 36, 0.4);
 }
 
+.comment-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.comment-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.category-comment {
+    width: 100%;
+    min-height: 84px;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    resize: vertical;
+    outline: none;
+    background: #fff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.category-comment:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
 @media (max-width: 768px) {
     .category-rating-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.6rem;
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
     }
 
     .category-name {
-        min-width: auto;
         font-size: 1rem;
     }
 
     .star-rating label {
         font-size: 2rem;
+    }
+
+    .category-comment {
+        min-height: 74px;
     }
 }
 </style>
