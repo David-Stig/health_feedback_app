@@ -62,7 +62,7 @@
                         <label for="cat_{{ forloop.counter }}_1" title="1 star">★</label>
                     </div>
                 </div>
-            {% endfor %}
+            
         </fieldset>
 
         <label>
@@ -70,7 +70,7 @@
             {{ form.comment }}
             {{ form.comment.errors }}
         </label>
-
+{% endfor %}
         <div class="grid-two">
             <label>
                 Age group (optional)
