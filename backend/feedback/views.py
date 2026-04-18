@@ -1,9 +1,9 @@
 from django.contrib import messages
 from django.shortcuts import redirect, render
 
+from facilities.models import Facility
 from .forms import FeedbackForm
 from .models import Feedback
-from facilities.models import Facility
 
 
 def submit_feedback(request):
@@ -41,7 +41,7 @@ def submit_feedback(request):
                 form.add_error(None, "Please rate at least one category.")
             else:
                 messages.success(request, "Thank you. Your feedback has been submitted.")
-                return redirect("feedback_success")
+                return redirect("feedback:thank_you")
     else:
         form = FeedbackForm(facility_id=facility_id)
 
