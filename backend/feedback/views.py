@@ -3,6 +3,7 @@ from django.shortcuts import redirect, render
 
 from .forms import FeedbackForm
 from .models import Feedback
+from facilities.models import Facility
 
 
 def submit_feedback(request):
