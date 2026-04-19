@@ -10,16 +10,6 @@
         <p class="eyebrow">Anonymous Feedback</p>
         <h1>Help improve your health facility visit</h1>
         <p class="subtle">This form is anonymous and should take less than 10 seconds to complete.</p>
-
-        {% if selected_facility %}
-            <div class="highlight-card">
-                <strong>Detected facility:</strong> {{ selected_facility.name }}<br>
-                <span>
-                    {% if selected_facility.district %}{{ selected_facility.district }}{% endif %}
-                    {% if selected_facility.province %}, {{ selected_facility.province }}{% endif %}
-                </span>
-            </div>
-        {% endif %}
     </div>
 
     <form method="post" class="feedback-card">
@@ -32,11 +22,23 @@
             </div>
         {% endif %}
 
-        <label>
-            Facility
-            {{ form.facility }}
-            {{ form.facility.errors }}
-        </label>
+        {% if selected_facility %}
+            <input type="hidden" name="facility" value="{{ selected_facility.pk }}">
+
+            <div class="highlight-card">
+                <strong>Detected facility:</strong> {{ selected_facility.name }}<br>
+                <span>
+                    {% if selected_facility.district %}{{ selected_facility.district }}{% endif %}
+                    {% if selected_facility.province %}, {{ selected_facility.province }}{% endif %}
+                </span>
+            </div>
+        {% else %}
+            <label>
+                Facility
+                {{ form.facility }}
+                {{ form.facility.errors }}
+            </label>
+        {% endif %}
 
         <fieldset class="service-ratings-fieldset">
             <legend>Rate each service area</legend>
