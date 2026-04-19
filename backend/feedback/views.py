@@ -10,7 +10,11 @@ def submit_feedback(request):
     categories = Feedback.Category.choices
     selected_facility = None
 
-    facility_id = request.GET.get("facility") or request.POST.get("facility")
+    facility_id = (
+        request.GET.get("facility_id")
+        or request.GET.get("facility")
+        or request.POST.get("facility")
+    )
 
     if request.method == "POST":
         form = FeedbackForm(request.POST, facility_id=facility_id)
