@@ -3,11 +3,13 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from django.urls import reverse_lazy
 from django.utils import timezone
+from django.utils.decorators import method_decorator
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 
 from facilities.forms import FacilityForm
@@ -49,6 +51,7 @@ class DashboardHomeView(StaffRequiredMixin, TemplateView):
         feedback_qs = Feedback.objects.select_related("facility")
         total_submissions = feedback_qs.count()
         recent_cutoff = timezone.now() - timedelta(days=30)
+
         trend_data = (
             feedback_qs.filter(created_at__gte=recent_cutoff)
             .annotate(day=TruncDate("created_at"))
@@ -56,6 +59,7 @@ class DashboardHomeView(StaffRequiredMixin, TemplateView):
             .annotate(total=Count("id"), average_rating=Avg("rating"))
             .order_by("day")
         )
+
         category_breakdown = list(
             feedback_qs.values("category").annotate(total=Count("id")).order_by("-total")
         )
@@ -141,8 +145,10 @@ def export_feedback_csv(request):
     queryset = filtered_feedback_queryset(request.GET).select_related("facility")
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="feedback-export.csv"'
+
     writer = csv.writer(response)
     writer.writerow(["Date", "Facility", "District", "Province", "Rating", "Category", "Comment"])
+
     for entry in queryset:
         writer.writerow(
             [
@@ -155,6 +161,7 @@ def export_feedback_csv(request):
                 entry.comment,
             ]
         )
+
     return response
 
 
