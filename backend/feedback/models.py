@@ -24,7 +24,6 @@ class Feedback(models.Model):
     class Gender(models.TextChoices):
         FEMALE = "Female", "Female"
         MALE = "Male", "Male"
-        
 
     facility = models.ForeignKey(Facility, on_delete=models.CASCADE, related_name="feedback_entries")
     rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
