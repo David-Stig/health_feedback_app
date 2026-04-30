@@ -11,6 +11,7 @@
             <p class="subtle">{{ facility.district }}, {{ facility.province }}</p>
         </div>
         <a class="button-secondary" href="{% url 'dashboard:facility_update' facility.pk %}">Edit facility</a>
+        <a class="button-secondary" href="{% url 'dashboard:facility_list' %}">Back to facilities</a>
     </div>
 
     <div class="detail-grid">
