@@ -139,6 +139,66 @@ class FacilityDetailView(StaffRequiredMixin, DetailView):
     model = Facility
     context_object_name = "facility"
 
+class FacilityBulkUploadView(StaffRequiredMixin, FormView):
+    template_name = "dashboard/facility_bulk_upload.html"
+    form_class = BulkFacilityUploadForm
+    success_url = reverse_lazy("dashboard:facility_list")
+
+    def form_valid(self, form):
+        uploaded_file = form.cleaned_data["file"]
+        decoded_file = TextIOWrapper(uploaded_file.file, encoding="utf-8-sig")
+        reader = csv.DictReader(decoded_file)
+        required_columns = {"name", "district", "province"}
+
+        if not reader.fieldnames:
+            form.add_error("file", "The uploaded CSV file is empty.")
+            return self.form_invalid(form)
+
+        normalized_columns = {column.strip().lower() for column in reader.fieldnames if column}
+        if not required_columns.issubset(normalized_columns):
+            form.add_error("file", "CSV must include the columns: name, district, province.")
+            return self.form_invalid(form)
+
+        created_count = 0
+        skipped_count = 0
+        invalid_rows = []
+
+        with transaction.atomic():
+            for index, row in enumerate(reader, start=2):
+                normalized_row = {
+                    (key or "").strip().lower(): (value or "").strip()
+                    for key, value in row.items()
+                }
+                name = normalized_row.get("name", "")
+                district = normalized_row.get("district", "")
+                province = normalized_row.get("province", "")
+
+                if not name or not district or not province:
+                    invalid_rows.append(index)
+                    continue
+
+                facility, created = Facility.objects.get_or_create(
+                    name=name,
+                    district=district,
+                    province=province,
+                )
+                if created:
+                    created_count += 1
+                else:
+                    skipped_count += 1
+
+        if invalid_rows:
+            messages.warning(
+                self.request,
+                f"Upload completed with skipped rows: {', '.join(str(row) for row in invalid_rows)}.",
+            )
+
+        messages.success(
+            self.request,
+            f"Bulk upload finished. Created {created_count} facilities and skipped {skipped_count} duplicates.",
+        )
+        return super().form_valid(form)
+        
 
 @staff_member_required
 def export_feedback_csv(request):
