@@ -1,0 +1,28 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Bulk Upload Facilities{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div>
+        <p class="eyebrow">Facilities</p>
+        <h1>Bulk upload facilities</h1>
+        <p class="subtle">Upload a CSV file to create many facilities at once. Duplicate rows are skipped automatically.</p>
+    </div>
+
+    <div class="highlight-card">
+        <strong>Expected CSV columns</strong>
+        <p class="subtle">Use exactly these headers: <code>name,district,province</code></p>
+        <p class="subtle">Example row: <code>Kawambwa General Hospital,Kawambwa,Luapula</code></p>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="stack">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="action-row">
+            <button type="submit" class="button-primary">Upload facilities</button>
+            <a class="button-secondary" href="{% url 'dashboard:facility_list' %}">Back to facilities</a>
+        </div>
+    </form>
+</section>
+{% endblock %}
