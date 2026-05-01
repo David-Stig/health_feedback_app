@@ -1,18 +1,18 @@
 import csv
+from io import TextIOWrapper
 from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Avg, Count
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from django.urls import reverse_lazy
 from django.utils import timezone
-from django.utils.decorators import method_decorator
-from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
+from django.views.generic import CreateView, DetailView, FormView, ListView, TemplateView, UpdateView
 
-from facilities.forms import FacilityForm
+from facilities.forms import BulkFacilityUploadForm, FacilityForm
 from facilities.models import Facility
 from feedback.models import Feedback
 
@@ -68,7 +68,7 @@ class DashboardHomeView(StaffRequiredMixin, TemplateView):
         )
         province_breakdown = list(
             feedback_qs.values("facility__province").annotate(total=Count("id")).order_by("-total")
-        )
+        ) 
 
         context.update(
             {
@@ -139,6 +139,7 @@ class FacilityDetailView(StaffRequiredMixin, DetailView):
     model = Facility
     context_object_name = "facility"
 
+
 class FacilityBulkUploadView(StaffRequiredMixin, FormView):
     template_name = "dashboard/facility_bulk_upload.html"
     form_class = BulkFacilityUploadForm
@@ -198,7 +199,7 @@ class FacilityBulkUploadView(StaffRequiredMixin, FormView):
             f"Bulk upload finished. Created {created_count} facilities and skipped {skipped_count} duplicates.",
         )
         return super().form_valid(form)
-        
+
 
 @staff_member_required
 def export_feedback_csv(request):
