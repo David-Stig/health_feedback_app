@@ -32,7 +32,8 @@ class Facility(models.Model):
         image = qr.make_image(fill_color="black", back_color="white")
         buffer = BytesIO()
         image.save(buffer, format="PNG")
-        filename = f"facility-{self.pk}-qr.png"
+        facility_slug = slugify(self.name) or f"facility-{self.pk}"
+        filename = f"{facility_slug}-{self.pk}-qr.png"
         self.qr_code.save(filename, ContentFile(buffer.getvalue()), save=save)
 
     def save(self, *args, **kwargs):
