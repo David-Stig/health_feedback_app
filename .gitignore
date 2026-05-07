@@ -1,2 +1,4 @@
 backend/.env.example
 backend/config/settings.py
+backend/.env
+backend/requirements.txt
