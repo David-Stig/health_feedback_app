@@ -13,6 +13,7 @@ class FacilityForm(forms.ModelForm):
             "province": forms.TextInput(attrs={"class": "form-control", "placeholder": "Province"}),
         }
 
+
 class BulkFacilityUploadForm(forms.Form):
     file = forms.FileField(
         help_text="Upload a CSV file with the columns: name, district, province.",

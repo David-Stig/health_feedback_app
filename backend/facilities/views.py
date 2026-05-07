@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
+from django.utils.text import slugify
 
 from .models import Facility
 
@@ -16,8 +17,10 @@ def download_qr_code(request, pk):
     if not facility.qr_code:
         raise Http404("QR code not found.")
 
+    download_name = f"{slugify(facility.name) or 'facility'}-{facility.pk}-qr.png"
+
     return FileResponse(
         facility.qr_code.open("rb"),
         as_attachment=True,
-        filename=facility.qr_code.name.split("/")[-1],
+        filename=download_name,
     )

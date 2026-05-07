@@ -1,0 +1,40 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Create User{% endblock %}
+
+{% block content %}
+<section class="panel form-panel">
+    <p class="eyebrow">User Management</p>
+    <h1>Create dashboard user</h1>
+    <p class="subtle">Create a dashboard login now, with room to expand permissions and facility rules later.</p>
+
+    <form method="post" class="stack">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="message error">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        {% for field in form %}
+            <label class="form-field">
+                <span>{{ field.label }}</span>
+                {{ field }}
+                {% if field.help_text %}
+                    <small class="field-help">{{ field.help_text|safe }}</small>
+                {% endif %}
+                {% if field.errors %}
+                    <div class="field-errors">
+                        {{ field.errors }}
+                    </div>
+                {% endif %}
+            </label>
+        {% endfor %}
+
+        <div class="action-row">
+            <button type="submit" class="button-primary">Create user</button>
+            <a class="button-secondary" href="{% url 'dashboard:user_list' %}">Back to users</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

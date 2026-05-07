@@ -1,23 +1,29 @@
 import csv
 from io import TextIOWrapper
+from io import TextIOWrapper
 from datetime import timedelta
 
 from django.contrib import messages
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth import get_user_model
+from django.contrib.auth.views import redirect_to_login
+from django.db import transaction
 from django.db import transaction
 from django.db.models import Avg, Count
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from django.urls import reverse_lazy
 from django.utils import timezone
-from django.views.generic import CreateView, DetailView, FormView, ListView, TemplateView, UpdateView
+from django.views.generic import CreateView, DetailView, FormView, FormView, ListView, TemplateView, UpdateView
 
-from facilities.forms import BulkFacilityUploadForm, FacilityForm
+from facilities.forms import BulkFacilityUploadForm, BulkFacilityUploadForm, FacilityForm
 from facilities.models import Facility
 from feedback.models import Feedback
 
-from .forms import FeedbackFilterForm
-from .mixins import StaffRequiredMixin
+from .forms import DashboardUserCreationForm, FeedbackFilterForm
+from .mixins import DashboardAccessMixin, StaffRequiredMixin
+from .models import get_or_create_dashboard_profile
+
+User = get_user_model()
 
 
 def filtered_feedback_queryset(params):
@@ -43,7 +49,7 @@ def filtered_feedback_queryset(params):
     return queryset
 
 
-class DashboardHomeView(StaffRequiredMixin, TemplateView):
+class DashboardHomeView(DashboardAccessMixin, TemplateView):
     template_name = "dashboard/home.html"
 
     def get_context_data(self, **kwargs):
@@ -51,6 +57,7 @@ class DashboardHomeView(StaffRequiredMixin, TemplateView):
         feedback_qs = Feedback.objects.select_related("facility")
         total_submissions = feedback_qs.count()
         recent_cutoff = timezone.now() - timedelta(days=30)
+
 
         trend_data = (
             feedback_qs.filter(created_at__gte=recent_cutoff)
@@ -60,6 +67,7 @@ class DashboardHomeView(StaffRequiredMixin, TemplateView):
             .order_by("day")
         )
 
+
         category_breakdown = list(
             feedback_qs.values("category").annotate(total=Count("id")).order_by("-total")
         )
@@ -68,7 +76,7 @@ class DashboardHomeView(StaffRequiredMixin, TemplateView):
         )
         province_breakdown = list(
             feedback_qs.values("facility__province").annotate(total=Count("id")).order_by("-total")
-        ) 
+        )  
 
         context.update(
             {
@@ -88,7 +96,7 @@ class DashboardHomeView(StaffRequiredMixin, TemplateView):
         return context
 
 
-class FeedbackListView(StaffRequiredMixin, ListView):
+class FeedbackListView(DashboardAccessMixin, ListView):
     template_name = "dashboard/feedback_list.html"
     model = Feedback
     paginate_by = 20
@@ -106,7 +114,7 @@ class FeedbackListView(StaffRequiredMixin, ListView):
         return context
 
 
-class FacilityListView(StaffRequiredMixin, ListView):
+class FacilityListView(DashboardAccessMixin, ListView):
     template_name = "dashboard/facility_list.html"
     model = Facility
     context_object_name = "facilities"
@@ -134,7 +142,7 @@ class FacilityUpdateView(StaffRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class FacilityDetailView(StaffRequiredMixin, DetailView):
+class FacilityDetailView(DashboardAccessMixin, DetailView):
     template_name = "dashboard/facility_detail.html"
     model = Facility
     context_object_name = "facility"
@@ -201,14 +209,81 @@ class FacilityBulkUploadView(StaffRequiredMixin, FormView):
         return super().form_valid(form)
 
 
-@staff_member_required
+class FacilityBulkUploadView(StaffRequiredMixin, FormView):
+    template_name = "dashboard/facility_bulk_upload.html"
+    form_class = BulkFacilityUploadForm
+    success_url = reverse_lazy("dashboard:facility_list")
+
+    def form_valid(self, form):
+        uploaded_file = form.cleaned_data["file"]
+        decoded_file = TextIOWrapper(uploaded_file.file, encoding="utf-8-sig")
+        reader = csv.DictReader(decoded_file)
+        required_columns = {"name", "district", "province"}
+
+        if not reader.fieldnames:
+            form.add_error("file", "The uploaded CSV file is empty.")
+            return self.form_invalid(form)
+
+        normalized_columns = {column.strip().lower() for column in reader.fieldnames if column}
+        if not required_columns.issubset(normalized_columns):
+            form.add_error("file", "CSV must include the columns: name, district, province.")
+            return self.form_invalid(form)
+
+        created_count = 0
+        skipped_count = 0
+        invalid_rows = []
+
+        with transaction.atomic():
+            for index, row in enumerate(reader, start=2):
+                normalized_row = {
+                    (key or "").strip().lower(): (value or "").strip()
+                    for key, value in row.items()
+                }
+                name = normalized_row.get("name", "")
+                district = normalized_row.get("district", "")
+                province = normalized_row.get("province", "")
+
+                if not name or not district or not province:
+                    invalid_rows.append(index)
+                    continue
+
+                facility, created = Facility.objects.get_or_create(
+                    name=name,
+                    district=district,
+                    province=province,
+                )
+                if created:
+                    created_count += 1
+                else:
+                    skipped_count += 1
+
+        if invalid_rows:
+            messages.warning(
+                self.request,
+                f"Upload completed with skipped rows: {', '.join(str(row) for row in invalid_rows)}.",
+            )
+
+        messages.success(
+            self.request,
+            f"Bulk upload finished. Created {created_count} facilities and skipped {skipped_count} duplicates.",
+        )
+        return super().form_valid(form)
+
+
 def export_feedback_csv(request):
+    if not request.user.is_authenticated:
+        return redirect_to_login(request.get_full_path())
+    if not (request.user.is_staff or get_or_create_dashboard_profile(request.user).is_dashboard_user):
+        return HttpResponse(status=403)
+
     queryset = filtered_feedback_queryset(request.GET).select_related("facility")
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="feedback-export.csv"'
 
+
     writer = csv.writer(response)
     writer.writerow(["Date", "Facility", "District", "Province", "Rating", "Category", "Comment"])
+
 
     for entry in queryset:
         writer.writerow(
@@ -223,11 +298,16 @@ def export_feedback_csv(request):
             ]
         )
 
+
     return response
 
 
-@staff_member_required
 def export_feedback_excel(request):
+    if not request.user.is_authenticated:
+        return redirect_to_login(request.get_full_path())
+    if not (request.user.is_staff or get_or_create_dashboard_profile(request.user).is_dashboard_user):
+        return HttpResponse(status=403)
+
     from openpyxl import Workbook
 
     queryset = filtered_feedback_queryset(request.GET).select_related("facility")
@@ -255,3 +335,26 @@ def export_feedback_excel(request):
     response["Content-Disposition"] = 'attachment; filename="feedback-export.xlsx"'
     workbook.save(response)
     return response
+
+
+class DashboardUserListView(StaffRequiredMixin, ListView):
+    template_name = "dashboard/user_list.html"
+    context_object_name = "users"
+    model = User
+
+    def get_queryset(self):
+        users = list(User.objects.order_by("username"))
+        for user in users:
+            get_or_create_dashboard_profile(user)
+        return users
+
+
+class DashboardUserCreateView(StaffRequiredMixin, FormView):
+    template_name = "dashboard/user_form.html"
+    form_class = DashboardUserCreationForm
+    success_url = reverse_lazy("dashboard:user_list")
+
+    def form_valid(self, form):
+        form.save()
+        messages.success(self.request, "User created successfully.")
+        return super().form_valid(form)

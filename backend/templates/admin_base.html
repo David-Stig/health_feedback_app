@@ -5,6 +5,9 @@
     <a href="{% url 'dashboard:home' %}">Dashboard</a>
     <a href="{% url 'dashboard:facility_list' %}">Facilities</a>
     <a href="{% url 'dashboard:feedback_list' %}">Submissions</a>
+    {% if request.user.is_staff %}
+        <a href="{% url 'dashboard:user_list' %}">Users</a>
+    {% endif %}
     <form action="{% url 'logout' %}" method="post">
         {% csrf_token %}
         <button type="submit" class="link-button">Sign out</button>

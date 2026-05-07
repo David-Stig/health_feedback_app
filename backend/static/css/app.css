@@ -239,6 +239,26 @@ fieldset {
     gap: 0.5rem;
 }
 
+.form-field {
+    align-items: start;
+}
+
+.field-help {
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.field-errors {
+    color: var(--danger);
+    font-size: 0.92rem;
+}
+
+.field-errors ul {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
 .form-control,
 input[type="text"],
 input[type="password"],

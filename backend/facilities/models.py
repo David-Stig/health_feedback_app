@@ -2,6 +2,7 @@ from django.db import models
 from django.core.files.base import ContentFile
 from django.urls import reverse
 from django.conf import settings
+from django.utils.text import slugify
 from io import BytesIO
 
 
