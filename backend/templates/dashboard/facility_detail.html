@@ -17,7 +17,8 @@
     <div class="detail-grid">
         <article class="info-card">
             <h2>Feedback link</h2>
-            <p><a href="{{ facility.get_feedback_url }}">{{ facility.get_feedback_url }}</a></p>
+            <p><a href="{% url 'feedback:submit' %}?facility_id={{ facility.pk }}">Open feedback form</a></p>
+            <p class="subtle">{{ facility.get_feedback_url }}</p>
         </article>
         <article class="info-card">
             <h2>QR code</h2>
