@@ -37,6 +37,7 @@
         <h2>Category distribution</h2>
         <canvas id="provinceChart"></canvas>
     </article>
+    
 </section>
 
 <section class="table-grid">
@@ -79,6 +80,7 @@
     const trendTotals = JSON.parse(document.getElementById("trend-totals").textContent);
     const trendRatings = JSON.parse(document.getElementById("trend-ratings").textContent);
     const categoryLabels = JSON.parse(document.getElementById("category-labels").textContent);
+   
     const categoryTotals = JSON.parse(document.getElementById("category-totals").textContent);
     new Chart(document.getElementById("categoryChart"), {
         type: "bar",
