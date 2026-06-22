@@ -30,15 +30,19 @@ def filtered_feedback_queryset(params):
     queryset = Feedback.objects.select_related("facility").all()
 
     if params.get("province"):
-        queryset = queryset.filter(facility__province=params["province"])
+        queryset = queryset.filter(facility__province=params["province"]) 
     if params.get("district"):
         queryset = queryset.filter(facility__district=params["district"])
     if params.get("facility"):
         queryset = queryset.filter(facility_id=params["facility"])
+    if params.get("gender"):
+        queryset = queryset.filter(gender=params["gender"])
     if params.get("category"):
         queryset = queryset.filter(category=params["category"])
     if params.get("rating"):
         queryset = queryset.filter(rating=params["rating"])
+    if params.get("distance"):
+        queryset = queryset.filter(distance=params["distance"])
     if params.get("date_from"):
         queryset = queryset.filter(created_at__date__gte=params["date_from"])
     if params.get("date_to"):
@@ -67,7 +71,12 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
             .order_by("day")
         )
 
-
+        gender_breakdown = list(
+            feedback_qs.values("gender").annotate(total=Count("id")).order_by("-total")
+        )
+        distance_breakdown = list(
+            feedback_qs.values("distance").annotate(total=Count("id")).order_by("-total")
+        )
         category_breakdown = list(
             feedback_qs.values("category").annotate(total=Count("id")).order_by("-total")
         )
@@ -83,12 +92,17 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
                 "total_submissions": total_submissions,
                 "facility_count": Facility.objects.count(),
                 "average_rating": round(feedback_qs.aggregate(avg=Avg("rating"))["avg"] or 0, 2),
+                "gender_breakdown": gender_breakdown,
                 "category_breakdown": category_breakdown,
                 "facility_breakdown": facility_breakdown,
                 "province_breakdown": province_breakdown,
                 "trend_labels": [item["day"].strftime("%Y-%m-%d") for item in trend_data],
                 "trend_totals": [item["total"] for item in trend_data],
                 "trend_ratings": [round(item["average_rating"] or 0, 2) for item in trend_data],
+                "gender_labels": [item["gender"] for item in gender_breakdown],
+                "gender_totals": [item["total"] for item in gender_breakdown],
+                "distance_labels": [item["distance"] for item in distance_breakdown],
+                "distance_totals": [item["total"] for item in distance_breakdown],
                 "category_labels": [item["category"] for item in category_breakdown],
                 "category_totals": [item["total"] for item in category_breakdown],
             }

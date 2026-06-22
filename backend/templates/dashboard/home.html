@@ -40,6 +40,17 @@
     
 </section>
 
+<section class="chart-grid">
+    <article class="panel">
+        <h2>Gender distribution</h2>
+        <canvas id="genderChart"></canvas>
+    </article>
+    <article class="panel">
+        <h2>Distance distribution</h2>
+        <canvas id="distanceChart"></canvas>
+    </article>
+</section>
+
 <section class="table-grid">
     <article class="panel">
         <h2>Top facilities</h2>
@@ -74,14 +85,20 @@
 {{ trend_ratings|json_script:"trend-ratings" }}
 {{ category_labels|json_script:"category-labels" }}
 {{ category_totals|json_script:"category-totals" }}
-
+{{ gender_labels|json_script:"gender-labels" }}
+{{ gender_totals|json_script:"gender-totals" }}
+{{ distance_labels|json_script:"distance-labels" }}
+{{ distance_totals|json_script:"distance-totals" }}
 <script>
     const trendLabels = JSON.parse(document.getElementById("trend-labels").textContent);
     const trendTotals = JSON.parse(document.getElementById("trend-totals").textContent);
     const trendRatings = JSON.parse(document.getElementById("trend-ratings").textContent);
     const categoryLabels = JSON.parse(document.getElementById("category-labels").textContent);
-   
+    const genderLabels = JSON.parse(document.getElementById("gender-labels").textContent);
+    const genderTotals = JSON.parse(document.getElementById("gender-totals").textContent);
     const categoryTotals = JSON.parse(document.getElementById("category-totals").textContent);
+    const distanceLabels = JSON.parse(document.getElementById("distance-labels").textContent);
+    const distanceTotals = JSON.parse(document.getElementById("distance-totals").textContent);
     new Chart(document.getElementById("categoryChart"), {
         type: "bar",
         data: {
@@ -112,6 +129,22 @@
         data: {
             labels: categoryLabels,
             datasets: [{ data: categoryTotals, backgroundColor: ["#0f4c5c", "#2c7da0", "#468faf", "#89c2d9", "#a9d6e5", "#f0b429", "#ef476f"] }]
+        }
+    });
+
+    new Chart(document.getElementById("genderChart"), {
+        type: "pie",
+        data: {
+            labels: genderLabels,
+            datasets: [{ data: genderTotals, backgroundColor: ["#0f4c5c", "#2c7da0", "#468faf", "#89c2d9", "#a9d6e5", "#f0b429", "#ef476f"] }]
+        }
+    });
+
+    new Chart(document.getElementById("distanceChart"), {
+        type: "pie",
+        data: {
+            labels: distanceLabels,
+            datasets: [{ data: distanceTotals, backgroundColor: ["#0f4c5c", "#2c7da0", "#468faf", "#89c2d9", "#a9d6e5", "#f0b429", "#ef476f"] }]
         }
     });
 </script>

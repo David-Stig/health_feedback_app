@@ -441,6 +441,19 @@
     cursor: not-allowed;
     color: #9ca3af;
 }
+
+/* Styling for conditionally required fields */
+.conditional-required {
+    background-color: #fef3c7;
+    border-left: 3px solid #f59e0b;
+    padding-left: 0.5rem;
+}
+
+.conditional-required::after {
+    content: " *";
+    color: #dc2626;
+    font-weight: bold;
+}
 </style>
 
 <script>
@@ -575,12 +588,78 @@ document.addEventListener('DOMContentLoaded', function() {
             // Add change event listener
             selectElement.addEventListener('change', function() {
                 toggleOtherField(this, config.labelId);
+                updateConditionalRequired();
             });
 
             // Check initial state on page load
             toggleOtherField(selectElement, config.labelId);
         }
     });
+
+    // ===== CONDITIONAL REQUIRED FIELDS LOGIC =====
+    // Map of field dependencies: when triggerField has value, requiredField becomes required
+    const conditionalRequired = [
+        { triggerField: 'id_service', triggerValue: 'Other', requiredField: 'id_service_other' },
+        { triggerField: 'id_reason_not_received', triggerValue: 'Other', requiredField: 'id_reason_not_received_other' },
+        { triggerField: 'id_reason_not_chance', triggerValue: 'Other', requiredField: 'id_reason_not_chance_other' },
+        { triggerField: 'id_aob', triggerValue: 'Yes', requiredField: 'id_aob_other' },
+        { triggerField: 'id_change', triggerValue: 'Other', requiredField: 'id_change_other' },
+        { triggerField: 'id_cash_payment', triggerValue: 'other', requiredField: 'id_cash_payment_other' },
+        { triggerField: 'id_no_insurance_reason', triggerValue: 'Other', requiredField: 'id_no_insurance_reason_other' },
+        { triggerField: 'id_facility_type', triggerValue: 'Other', requiredField: 'id_facility_type_other' },
+        // Special case: received_service is not 'Yes'
+        { triggerField: 'id_received_service', triggerValue: 'NOT_YES', requiredField: 'id_reason_not_received', isSpecial: true }
+    ];
+
+    function updateConditionalRequired() {
+        conditionalRequired.forEach(dep => {
+            const triggerField = document.getElementById(dep.triggerField);
+            const requiredField = document.getElementById(dep.requiredField);
+            
+            if (triggerField && requiredField) {
+                let shouldBeRequired = false;
+                
+                if (dep.isSpecial) {
+                    // Special case for received_service
+                    shouldBeRequired = triggerField.value !== 'Yes, I received everything I needed';
+                } else {
+                    shouldBeRequired = triggerField.value === dep.triggerValue;
+                }
+                
+                // Update field requirement
+                requiredField.required = shouldBeRequired;
+                
+                // Find the label wrapper and update visual indicator
+                const label = requiredField.closest('label');
+                if (label) {
+                    if (shouldBeRequired) {
+                        label.classList.add('conditional-required');
+                        // Update label text to show it's now required
+                        if (!label.textContent.includes('*')) {
+                            // Add asterisk if not present
+                            const labelText = label.textContent.trim();
+                            if (labelText && !labelText.endsWith('*')) {
+                                // Note: This is a visual aid only, actual validation is handled server-side
+                            }
+                        }
+                    } else {
+                        label.classList.remove('conditional-required');
+                    }
+                }
+            }
+        });
+    }
+
+    // Listen for changes on all trigger fields
+    conditionalRequired.forEach(dep => {
+        const triggerField = document.getElementById(dep.triggerField);
+        if (triggerField) {
+            triggerField.addEventListener('change', updateConditionalRequired);
+        }
+    });
+
+    // Initialize on page load
+    updateConditionalRequired();
 });
 </script>
 {% endblock %}

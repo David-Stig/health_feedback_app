@@ -14,7 +14,8 @@ class FeedbackFilterForm(forms.Form):
     province = forms.ChoiceField(required=False)
     district = forms.ChoiceField(required=False)
     facility = forms.ModelChoiceField(queryset=Facility.objects.all(), required=False)
-    category = forms.ChoiceField(required=False)
+    category = forms.ChoiceField(required=False) 
+    gender = forms.ChoiceField(required=False)
     rating = forms.ChoiceField(required=False)
     date_from = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
     date_to = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
@@ -28,6 +29,7 @@ class FeedbackFilterForm(forms.Form):
         self.fields["province"].choices = [("", "All provinces")] + [(p, p) for p in provinces]
         self.fields["district"].choices = [("", "All districts")] + [(d, d) for d in districts]
         self.fields["category"].choices = [("", "All categories")] + list(Feedback.Category.choices)
+        self.fields["gender"].choices = [("", "All genders")] + list(Feedback.Gender.choices)
         self.fields["rating"].choices = [("", "All ratings")] + [(str(i), str(i)) for i in range(1, 6)]
 
         for field in self.fields.values():
