@@ -39,6 +39,7 @@ CSRF_TRUSTED_ORIGINS = env_list(
 )
 
 SITE_URL = os.getenv("SITE_URL", "http://13.61.173.250")
+SITE_PORT = os.getenv("SITE_PORT", "").strip()
 
 SECURE_SSL_REDIRECT = os.getenv("DJANGO_SECURE_SSL_REDIRECT", "False").lower() == "true"
 SESSION_COOKIE_SECURE = os.getenv("DJANGO_SESSION_COOKIE_SECURE", "False").lower() == "true"

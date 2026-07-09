@@ -47,6 +47,25 @@ class SecureFacilityModelTests(TestCase):
         )
 
 
+@override_settings(
+    MEDIA_ROOT=TEST_MEDIA_ROOT,
+    SITE_URL="http://feedback.example.com",
+    SITE_PORT="8000",
+)
+class PortAwareFacilityModelTests(TestCase):
+    def test_feedback_url_includes_configured_port_when_missing_from_site_url(self):
+        facility = Facility.objects.create(
+            name="Port Clinic",
+            district="Lusaka",
+            province="Lusaka",
+        )
+
+        self.assertEqual(
+            facility.get_feedback_url(),
+            f"http://feedback.example.com:8000/feedback/facility/{facility.pk}/",
+        )
+
+
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, SITE_URL="feedback.example.com")
 class FacilityQrBulkRegenerationTests(TestCase):
     def setUp(self):

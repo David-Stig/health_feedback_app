@@ -30,11 +30,16 @@ class Facility(models.Model):
 
         parsed = urlsplit(raw_site_url)
         scheme = parsed.scheme or "https"
+        netloc = parsed.netloc
+        site_port = (getattr(settings, "SITE_PORT", "") or "").strip()
 
         if getattr(settings, "SECURE_SSL_REDIRECT", False):
             scheme = "https"
 
-        return urlunsplit((scheme, parsed.netloc, parsed.path.rstrip("/"), "", ""))
+        if site_port and ":" not in netloc:
+            netloc = f"{netloc}:{site_port}"
+
+        return urlunsplit((scheme, netloc, parsed.path.rstrip("/"), "", ""))
 
     def get_feedback_url(self) -> str:
         base_url = self._normalized_site_url()
