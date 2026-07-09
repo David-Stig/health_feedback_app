@@ -1,8 +1,10 @@
 import tempfile
+from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from PIL import Image
 
 from .models import Facility
 
@@ -78,3 +80,16 @@ class FacilityQrBulkRegenerationTests(TestCase):
         self.facility_b.refresh_from_db()
         self.assertTrue(self.facility_a.qr_code.name)
         self.assertTrue(self.facility_b.qr_code.name)
+
+    def test_downloaded_qr_code_includes_labeled_canvas(self):
+        self.client.login(username="staff", password="secret123")
+
+        response = self.client.get(reverse("facilities:download_qr", args=[self.facility_a.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "image/png")
+
+        image_bytes = b"".join(response.streaming_content)
+        image = Image.open(BytesIO(image_bytes))
+
+        self.assertGreater(image.height, image.width)
