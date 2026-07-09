@@ -10,6 +10,12 @@
             <h1>Manage health facilities</h1>
         </div>
         <div class="action-row">
+            {% if request.user.is_staff %}
+                <form method="post" action="{% url 'facilities:bulk_regenerate_qr' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="button-secondary">Bulk regenerate QR</button>
+                </form>
+            {% endif %}
             <a class="button-secondary" href="{% url 'dashboard:facility_bulk_upload' %}">Bulk upload</a>
             <a class="button-primary" href="{% url 'dashboard:facility_create' %}">Add facility</a>
         </div>

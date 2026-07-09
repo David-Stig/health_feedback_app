@@ -26,6 +26,7 @@ class FeedbackSubmissionTests(TestCase):
             province="Lusaka",
         )
         self.url = reverse("feedback:submit")
+        self.facility_url = reverse("feedback:facility_submit", args=[self.facility.pk])
 
     def _valid_payload(self):
         return {
@@ -53,7 +54,7 @@ class FeedbackSubmissionTests(TestCase):
         }
 
     def test_submission_persists_all_shared_answers_for_each_rating(self):
-        response = self.client.post(self.url, data=self._valid_payload())
+        response = self.client.post(self.facility_url, data=self._valid_payload())
 
         self.assertRedirects(response, reverse("feedback:thank_you"))
         self.assertEqual(Feedback.objects.count(), 2)
@@ -69,8 +70,8 @@ class FeedbackSubmissionTests(TestCase):
         self.assertEqual(entry.comment, "Service was fine.")
 
     def test_submission_rate_limit_blocks_second_valid_submit(self):
-        first_response = self.client.post(self.url, data=self._valid_payload())
-        second_response = self.client.post(self.url, data=self._valid_payload())
+        first_response = self.client.post(self.facility_url, data=self._valid_payload())
+        second_response = self.client.post(self.facility_url, data=self._valid_payload())
 
         self.assertRedirects(first_response, reverse("feedback:thank_you"))
         self.assertEqual(second_response.status_code, 200)
@@ -78,7 +79,7 @@ class FeedbackSubmissionTests(TestCase):
         self.assertEqual(Feedback.objects.count(), 2)
 
     def test_submit_another_response_keeps_same_facility_locked(self):
-        self.client.post(self.url, data=self._valid_payload())
+        self.client.post(self.facility_url, data=self._valid_payload())
 
         response = self.client.get(self.url)
 
@@ -97,7 +98,7 @@ class FeedbackSubmissionTests(TestCase):
             province="Lusaka",
         )
 
-        self.client.post(self.url, data=self._valid_payload())
+        self.client.post(self.facility_url, data=self._valid_payload())
         cache.clear()
         payload = self._valid_payload()
         payload["facility"] = str(other_facility.pk)
@@ -108,3 +109,9 @@ class FeedbackSubmissionTests(TestCase):
         self.assertRedirects(response, reverse("feedback:thank_you"))
         latest_entry = Feedback.objects.filter(comment="Still linked to original facility.").latest("created_at")
         self.assertEqual(latest_entry.facility, self.facility)
+
+    def test_facility_specific_route_locks_selected_facility_on_get(self):
+        response = self.client.get(self.facility_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_facility"], self.facility)

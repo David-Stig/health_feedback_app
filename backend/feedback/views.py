@@ -30,7 +30,11 @@ def _build_feedback_base_data(cleaned_data):
     }
 
 
-def _resolve_facility_id(request):
+def _resolve_facility_id(request, facility_id=None):
+    if facility_id:
+        request.session[FEEDBACK_FACILITY_SESSION_KEY] = str(facility_id)
+        return str(facility_id)
+
     session_facility_id = request.session.get(FEEDBACK_FACILITY_SESSION_KEY)
     if request.method == "POST" and session_facility_id:
         return session_facility_id
@@ -47,10 +51,10 @@ def _resolve_facility_id(request):
     return session_facility_id
 
 
-def submit_feedback(request):
+def submit_feedback(request, facility_id=None):
     categories = Feedback.Category.choices
 
-    facility_id = _resolve_facility_id(request)
+    facility_id = _resolve_facility_id(request, facility_id=facility_id)
 
     if request.method == "POST":
         post_data = request.POST.copy()
