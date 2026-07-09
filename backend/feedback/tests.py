@@ -27,6 +27,7 @@ class FeedbackSubmissionTests(TestCase):
         )
         self.url = reverse("feedback:submit")
         self.facility_url = reverse("feedback:facility_submit", args=[self.facility.pk])
+        self.short_facility_url = reverse("feedback_short_submit", args=[self.facility.pk])
 
     def _valid_payload(self):
         return {
@@ -112,6 +113,12 @@ class FeedbackSubmissionTests(TestCase):
 
     def test_facility_specific_route_locks_selected_facility_on_get(self):
         response = self.client.get(self.facility_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_facility"], self.facility)
+
+    def test_short_facility_route_locks_selected_facility_on_get(self):
+        response = self.client.get(self.short_facility_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["selected_facility"], self.facility)
