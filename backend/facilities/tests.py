@@ -22,7 +22,7 @@ class FacilityModelTests(TestCase):
 
         self.assertEqual(
             facility.get_feedback_url(),
-            f"https://feedback.example.com/f/{facility.pk}/",
+            f"https://feedback.example.com/feedback/facility/{facility.pk}/",
         )
 
 
@@ -41,7 +41,7 @@ class SecureFacilityModelTests(TestCase):
 
         self.assertEqual(
             facility.get_feedback_url(),
-            f"https://feedback.example.com/f/{facility.pk}/",
+            f"https://feedback.example.com/feedback/facility/{facility.pk}/",
         )
 
 

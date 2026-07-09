@@ -38,7 +38,7 @@ class Facility(models.Model):
 
     def get_feedback_url(self) -> str:
         base_url = self._normalized_site_url()
-        return f"{base_url}{reverse('feedback_short_submit', kwargs={'facility_id': self.pk})}"
+        return f"{base_url}{reverse('feedback:facility_submit', kwargs={'facility_id': self.pk})}"
 
     def generate_qr_code(self, save: bool = True) -> None:
         import qrcode
