@@ -27,7 +27,7 @@ class FeedbackForm(forms.ModelForm):
                     "placeholder": "Optional comment",
                 }
             ),
-            "age_group": forms.Select(attrs={"class": "form-control"}),
+            "age_group": forms.Select(attrs={"class": "form-control"}), 
             "gender": forms.Select(attrs={"class": "form-control"}),    
             "change": forms.Select(attrs={"class": "form-control"}),
             "change_other": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Please specify..."}),
@@ -62,7 +62,11 @@ class FeedbackForm(forms.ModelForm):
         facility_id = kwargs.pop("facility_id", None)
         super().__init__(*args, **kwargs)
 
-        self.fields["facility"].queryset = Facility.objects.all()
+        if facility_id:
+            self.fields["facility"].queryset = Facility.objects.filter(pk=facility_id)
+            self.fields["facility"].initial = facility_id
+        else:
+            self.fields["facility"].queryset = Facility.objects.all()
         self.fields["age_group"].required = True
         self.fields["gender"].required = True
         self.fields["comment"].required = False
@@ -94,9 +98,6 @@ class FeedbackForm(forms.ModelForm):
         self.fields["reason_not_received"].required = False
         self.fields["reason_not_received_other"].required = False
 
-        if facility_id:
-            self.fields["facility"].initial = facility_id
-
     def clean_honeypot(self):
         value = self.cleaned_data.get("honeypot")
         if value:
@@ -112,51 +113,76 @@ class FeedbackForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        service_other = cleaned_data.get("service_other")
+        reason_not_received_other = cleaned_data.get("reason_not_received_other")
+        reason_not_chance_other = cleaned_data.get("reason_not_chance_other")
+        aob_other = cleaned_data.get("aob_other")
+        change_other = cleaned_data.get("change_other")
+        cash_payment_other = cleaned_data.get("cash_payment_other")
+        no_insurance_reason_other = cleaned_data.get("no_insurance_reason_other")
+        facility_type_other = cleaned_data.get("facility_type_other")
         
         # Conditional required field validation
         # service='Other' -> service_other required
-        if cleaned_data.get("service") == "Other":
-            if not cleaned_data.get("service_other"):
+        if cleaned_data.get("service") == Feedback.Service.OTHER:
+            if not service_other:
                 self.add_error("service_other", "Please specify the service.")
         
         # reason_not_received='Other' -> reason_not_received_other required
-        if cleaned_data.get("reason_not_received") == "Other":
-            if not cleaned_data.get("reason_not_received_other"):
+        if cleaned_data.get("reason_not_received") == Feedback.ReasonNotReceived.OTHER:
+            if not reason_not_received_other:
                 self.add_error("reason_not_received_other", "Please specify the reason.")
         
         # reason_not_chance='Other' -> reason_not_chance_other required
-        if cleaned_data.get("reason_not_chance") == "Other":
-            if not cleaned_data.get("reason_not_chance_other"):
+        if cleaned_data.get("reason_not_chance") == Feedback.REASON_NOT_CHANCE.OTHER:
+            if not reason_not_chance_other:
                 self.add_error("reason_not_chance_other", "Please specify.")
         
         # aob='Yes' -> aob_other required
-        if cleaned_data.get("aob") == "Yes":
-            if not cleaned_data.get("aob_other"):
+        if cleaned_data.get("aob") == Feedback.AOB.YES:
+            if not aob_other:
                 self.add_error("aob_other", "Please specify.")
         
         # change='Other' -> change_other required
-        if cleaned_data.get("change") == "Other":
-            if not cleaned_data.get("change_other"):
+        if cleaned_data.get("change") == Feedback.CHANGE.OTHER:
+            if not change_other:
                 self.add_error("change_other", "Please specify the change.")
         
         # received_service is not 'Yes' -> reason_not_received required
-        if cleaned_data.get("received_service") != "Yes, I received everything I needed":
+        if cleaned_data.get("received_service") != Feedback.receivedService.YES:
             if not cleaned_data.get("reason_not_received"):
                 self.add_error("reason_not_received", "Please explain why you didn't receive all services.")
         
         # cash_payment='Other' -> cash_payment_other required
-        if cleaned_data.get("cash_payment") == "other":
-            if not cleaned_data.get("cash_payment_other"):
+        if cleaned_data.get("cash_payment") == Feedback.CASH.OTHER:
+            if not cash_payment_other:
                 self.add_error("cash_payment_other", "Please specify the amount.")
         
         # no_insurance_reason='Other' -> no_insurance_reason_other required
-        if cleaned_data.get("no_insurance_reason") == "Other":
-            if not cleaned_data.get("no_insurance_reason_other"):
+        if cleaned_data.get("no_insurance_reason") == Feedback.NO_INSURANCE_REASON.OTHER:
+            if not no_insurance_reason_other:
                 self.add_error("no_insurance_reason_other", "Please specify the reason.")
         
         # facility_type='Other' -> facility_type_other required
-        if cleaned_data.get("facility_type") == "Other":
-            if not cleaned_data.get("facility_type_other"):
+        if cleaned_data.get("facility_type") == Feedback.FacilityType.OTHER:
+            if not facility_type_other:
                 self.add_error("facility_type_other", "Please specify the facility type.")
         
+        if cleaned_data.get("service") != Feedback.Service.OTHER:
+            cleaned_data["service_other"] = ""
+        if cleaned_data.get("reason_not_received") != Feedback.ReasonNotReceived.OTHER:
+            cleaned_data["reason_not_received_other"] = ""
+        if cleaned_data.get("reason_not_chance") != Feedback.REASON_NOT_CHANCE.OTHER:
+            cleaned_data["reason_not_chance_other"] = ""
+        if cleaned_data.get("aob") != Feedback.AOB.YES:
+            cleaned_data["aob_other"] = ""
+        if cleaned_data.get("change") != Feedback.CHANGE.OTHER:
+            cleaned_data["change_other"] = ""
+        if cleaned_data.get("cash_payment") != Feedback.CASH.OTHER:
+            cleaned_data["cash_payment_other"] = ""
+        if cleaned_data.get("no_insurance_reason") != Feedback.NO_INSURANCE_REASON.OTHER:
+            cleaned_data["no_insurance_reason_other"] = ""
+        if cleaned_data.get("facility_type") != Feedback.FacilityType.OTHER:
+            cleaned_data["facility_type_other"] = ""
+
         return cleaned_data

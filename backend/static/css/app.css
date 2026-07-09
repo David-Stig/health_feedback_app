@@ -88,7 +88,8 @@ img {
 .link-button,
 button,
 .button-primary,
-.button-secondary {
+.button-secondary,
+.button-danger {
     border: 0;
     border-radius: 999px;
     cursor: pointer;
@@ -96,18 +97,33 @@ button,
 }
 
 .link-button,
+.button-secondary,
+.button-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+}
+
+.link-button,
 .button-secondary {
     background: transparent;
     color: var(--brand-dark);
-    padding: 0.75rem 1rem;
     border: 1px solid var(--border);
 }
 
 .button-primary {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: var(--brand);
     color: #fff;
     padding: 0.85rem 1.2rem;
+}
+
+.button-danger {
+    background: var(--danger);
+    color: #fff;
 }
 
 .button-full {
@@ -231,6 +247,28 @@ button,
 .stack-lg {
     display: grid;
     gap: 1rem;
+}
+
+.form-actions {
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.facility-detail-actions,
+.facility-qr-actions {
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.facility-detail-actions {
+    justify-content: flex-end;
+}
+
+.facility-detail-actions .button-primary,
+.facility-detail-actions .button-secondary,
+.facility-detail-actions .button-danger,
+.facility-qr-actions .button-secondary {
+    min-width: 170px;
 }
 
 label,
@@ -358,5 +396,17 @@ textarea {
 
     .rating-group {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .facility-detail-actions {
+        justify-content: stretch;
+    }
+
+    .facility-detail-actions .button-primary,
+    .facility-detail-actions .button-secondary,
+    .facility-detail-actions .button-danger,
+    .facility-qr-actions .button-secondary {
+        width: 100%;
+        min-width: 0;
     }
 }

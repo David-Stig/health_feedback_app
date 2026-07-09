@@ -1,0 +1,19 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Delete Facility{% endblock %}
+
+{% block content %}
+<section class="panel stack">
+    <p class="eyebrow">Facilities</p>
+    <h1>Delete facility</h1>
+    <p>You are about to delete <strong>{{ facility.name }}</strong>.</p>
+    <p class="subtle">{{ facility.district }}, {{ facility.province }}</p>
+    <p class="subtle">Deleting this facility will also delete its linked feedback records.</p>
+
+    <form method="post" class="action-row form-actions">
+        {% csrf_token %}
+        <button type="submit" class="button-danger">Delete facility</button>
+        <a class="button-secondary" href="{% url 'dashboard:facility_detail' facility.pk %}">Cancel</a>
+    </form>
+</section>
+{% endblock %}

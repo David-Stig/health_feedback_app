@@ -33,7 +33,13 @@
                         <td>{{ facility.district }}</td>
                         <td>{{ facility.province }}</td>
                         <td>{% if facility.qr_code %}<a href="{% url 'facilities:download_qr' facility.pk %}">Download</a>{% else %}-{% endif %}</td>
-                        <td><a href="{% url 'dashboard:facility_detail' facility.pk %}">View</a> | <a href="{% url 'dashboard:facility_update' facility.pk %}">Edit</a></td>
+                        <td>
+                            <a href="{% url 'dashboard:facility_detail' facility.pk %}">View</a> |
+                            <a href="{% url 'dashboard:facility_update' facility.pk %}">Edit</a>
+                            {% if request.user.is_staff %}
+                                | <a href="{% url 'dashboard:facility_delete' facility.pk %}">Delete</a>
+                            {% endif %}
+                        </td>
                     </tr>
                 {% empty %}
                     <tr><td colspan="5">No facilities yet.</td></tr>

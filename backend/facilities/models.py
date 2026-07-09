@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.conf import settings
 from django.utils.text import slugify
 from io import BytesIO
+from urllib.parse import urlsplit, urlunsplit
 
 
 class Facility(models.Model):
@@ -19,8 +20,24 @@ class Facility(models.Model):
     def __str__(self) -> str:
         return f"{self.name} ({self.district})"
 
+    def _normalized_site_url(self) -> str:
+        raw_site_url = (getattr(settings, "SITE_URL", "") or "").strip()
+        if not raw_site_url:
+            raise ValueError("SITE_URL must be configured to generate QR codes.")
+
+        if "://" not in raw_site_url:
+            raw_site_url = f"https://{raw_site_url}"
+
+        parsed = urlsplit(raw_site_url)
+        scheme = parsed.scheme or "https"
+
+        if getattr(settings, "SECURE_SSL_REDIRECT", False):
+            scheme = "https"
+
+        return urlunsplit((scheme, parsed.netloc, parsed.path.rstrip("/"), "", ""))
+
     def get_feedback_url(self) -> str:
-        base_url = settings.SITE_URL.rstrip("/")
+        base_url = self._normalized_site_url()
         return f"{base_url}{reverse('feedback:submit')}?facility_id={self.pk}"
 
     def generate_qr_code(self, save: bool = True) -> None:
@@ -38,7 +55,11 @@ class Facility(models.Model):
         self.qr_code.save(filename, ContentFile(buffer.getvalue()), save=save)
 
     def save(self, *args, **kwargs):
-        regenerate = self.pk is None or not self.qr_code
+        previous_name = None
+        if self.pk:
+            previous_name = type(self).objects.filter(pk=self.pk).values_list("name", flat=True).first()
+
+        regenerate = self.pk is None or not self.qr_code or previous_name != self.name
         super().save(*args, **kwargs)
         if regenerate:
             # The facility ID is part of the QR payload, so we generate the image after the first save.

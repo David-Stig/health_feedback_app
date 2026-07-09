@@ -10,21 +10,29 @@
             <h1>{{ facility.name }}</h1>
             <p class="subtle">{{ facility.district }}, {{ facility.province }}</p>
         </div>
-        <a class="button-primary" href="{% url 'dashboard:facility_update' facility.pk %}">Edit facility</a>
-        <a class="button-secondary" href="{% url 'dashboard:facility_list' %}">Back to facilities</a>
+        <div class="action-row facility-detail-actions">
+            <a class="button-primary" href="{% url 'dashboard:facility_update' facility.pk %}">Edit facility</a>
+            {% if request.user.is_staff %}
+                <a class="button-danger" href="{% url 'dashboard:facility_delete' facility.pk %}">Delete facility</a>
+            {% endif %}
+            <a class="button-secondary" href="{% url 'dashboard:facility_list' %}">Back to facilities</a>
+        </div>
     </div>
 
     <div class="detail-grid">
         <article class="info-card">
             <h2>Feedback link</h2>
-            <p><a href="{% url 'feedback:submit' %}?facility_id={{ facility.pk }}">Open feedback form</a></p>
+            <p><a href="{{ facility.get_feedback_url }}" target="_blank" rel="noopener">Open feedback form</a></p>
             <p class="subtle">{{ facility.get_feedback_url }}</p>
         </article>
         <article class="info-card">
             <h2>QR code</h2>
             {% if facility.qr_code %}
                 <img class="qr-preview" src="{{ facility.qr_code.url }}" alt="QR code for {{ facility.name }}">
-                <a class="button-secondary" href="{% url 'facilities:download_qr' facility.pk %}">Download QR</a>
+                <div class="action-row facility-qr-actions">
+                    <a class="button-secondary" href="{% url 'facilities:download_qr' facility.pk %}">Download QR</a>
+                    <a class="button-secondary" href="{% url 'dashboard:facility_update' facility.pk %}">Refresh QR via edit</a>
+                </div>
             {% else %}
                 <p>QR code not available.</p>
             {% endif %}

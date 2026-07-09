@@ -8,9 +8,68 @@
     <h1>{% if object %}Edit facility{% else %}Add facility{% endif %}</h1>
     <form method="post" class="stack">
         {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit" class="button-primary">{% if object %}Save changes{% else %}Create facility{% endif %}</button>
-        <button type="submit" class="button-secondary" href="{% url 'dashboard:facility_detail' facility.pk %}">Back</button>
+        <label>
+            Facility name
+            {{ form.name }}
+            {{ form.name.errors }}
+        </label>
+        <label>
+            Province
+            {{ form.province }}
+            {{ form.province.errors }}
+        </label>
+        <label>
+            District
+            {{ form.district }}
+            {{ form.district.errors }}
+        </label>
+        <div class="action-row form-actions">
+            <button type="submit" class="button-primary">{% if object %}Save changes{% else %}Create facility{% endif %}</button>
+            {% if object %}
+                <a class="button-secondary" href="{% url 'dashboard:facility_detail' object.pk %}">Cancel</a>
+                <a class="button-secondary" href="{% url 'dashboard:facility_list' %}">Back to facilities</a>
+            {% else %}
+                <a class="button-secondary" href="{% url 'dashboard:facility_list' %}">Cancel</a>
+            {% endif %}
+        </div>
     </form>
 </section>
+{{ province_district_map|json_script:"province-district-map" }}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const provinceField = document.getElementById("id_province");
+    const districtField = document.getElementById("id_district");
+    const provinceDistrictMap = JSON.parse(document.getElementById("province-district-map").textContent);
+
+    if (!provinceField || !districtField) {
+        return;
+    }
+
+    function populateDistricts(province, selectedDistrict) {
+        const districts = provinceDistrictMap[province] || [];
+        districtField.innerHTML = "";
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Select district";
+        districtField.appendChild(placeholder);
+
+        districts.forEach(function (district) {
+            const option = document.createElement("option");
+            option.value = district;
+            option.textContent = district;
+            if (district === selectedDistrict) {
+                option.selected = true;
+            }
+            districtField.appendChild(option);
+        });
+    }
+
+    populateDistricts(provinceField.value, districtField.value);
+
+    provinceField.addEventListener("change", function () {
+        populateDistricts(provinceField.value, "");
+    });
+});
+</script>
 {% endblock %}

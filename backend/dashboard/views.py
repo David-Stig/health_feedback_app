@@ -1,21 +1,19 @@
 import csv
 from io import TextIOWrapper
-from io import TextIOWrapper
 from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.views import redirect_to_login
 from django.db import transaction
-from django.db import transaction
 from django.db.models import Avg, Count
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from django.urls import reverse_lazy
 from django.utils import timezone
-from django.views.generic import CreateView, DetailView, FormView, FormView, ListView, TemplateView, UpdateView
+from django.views.generic import CreateView, DeleteView, DetailView, FormView, ListView, TemplateView, UpdateView
 
-from facilities.forms import BulkFacilityUploadForm, BulkFacilityUploadForm, FacilityForm
+from facilities.forms import BulkFacilityUploadForm, FacilityForm, ZAMBIA_PROVINCES_AND_DISTRICTS
 from facilities.models import Facility
 from feedback.models import Feedback
 
@@ -26,8 +24,17 @@ from .models import get_or_create_dashboard_profile
 User = get_user_model()
 
 
-def filtered_feedback_queryset(params):
+def scoped_feedback_queryset(user):
     queryset = Feedback.objects.select_related("facility").all()
+    if user.is_authenticated and not user.is_staff:
+        profile = get_or_create_dashboard_profile(user)
+        if profile.is_dashboard_user and profile.facility_id:
+            queryset = queryset.filter(facility_id=profile.facility_id)
+    return queryset
+
+
+def filtered_feedback_queryset(user, params):
+    queryset = scoped_feedback_queryset(user)
 
     if params.get("province"):
         queryset = queryset.filter(facility__province=params["province"]) 
@@ -58,7 +65,7 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        feedback_qs = Feedback.objects.select_related("facility")
+        feedback_qs = scoped_feedback_queryset(self.request.user)
         total_submissions = feedback_qs.count()
         recent_cutoff = timezone.now() - timedelta(days=30)
 
@@ -119,8 +126,8 @@ class FeedbackListView(DashboardAccessMixin, ListView):
     def get_queryset(self):
         self.filter_form = FeedbackFilterForm(self.request.GET or None)
         if self.filter_form.is_valid():
-            return filtered_feedback_queryset(self.filter_form.cleaned_data)
-        return Feedback.objects.select_related("facility").all()
+            return filtered_feedback_queryset(self.request.user, self.filter_form.cleaned_data)
+        return scoped_feedback_queryset(self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -133,6 +140,16 @@ class FacilityListView(DashboardAccessMixin, ListView):
     model = Facility
     context_object_name = "facilities"
 
+    def get_queryset(self):
+        queryset = Facility.objects.all()
+        if self.request.user.is_staff:
+            return queryset
+
+        profile = get_or_create_dashboard_profile(self.request.user)
+        if profile.is_dashboard_user and profile.facility_id:
+            return queryset.filter(pk=profile.facility_id)
+        return queryset.none()
+
 
 class FacilityCreateView(StaffRequiredMixin, CreateView):
     template_name = "dashboard/facility_form.html"
@@ -143,6 +160,11 @@ class FacilityCreateView(StaffRequiredMixin, CreateView):
     def form_valid(self, form):
         messages.success(self.request, "Facility created successfully.")
         return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["province_district_map"] = ZAMBIA_PROVINCES_AND_DISTRICTS
+        return context
 
 
 class FacilityUpdateView(StaffRequiredMixin, UpdateView):
@@ -155,71 +177,36 @@ class FacilityUpdateView(StaffRequiredMixin, UpdateView):
         messages.success(self.request, "Facility updated successfully.")
         return super().form_valid(form)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["province_district_map"] = ZAMBIA_PROVINCES_AND_DISTRICTS
+        return context
+
 
 class FacilityDetailView(DashboardAccessMixin, DetailView):
     template_name = "dashboard/facility_detail.html"
     model = Facility
     context_object_name = "facility"
 
+    def get_queryset(self):
+        queryset = Facility.objects.all()
+        if self.request.user.is_staff:
+            return queryset
 
-class FacilityBulkUploadView(StaffRequiredMixin, FormView):
-    template_name = "dashboard/facility_bulk_upload.html"
-    form_class = BulkFacilityUploadForm
+        profile = get_or_create_dashboard_profile(self.request.user)
+        if profile.is_dashboard_user and profile.facility_id:
+            return queryset.filter(pk=profile.facility_id)
+        return queryset.none()
+
+
+class FacilityDeleteView(StaffRequiredMixin, DeleteView):
+    template_name = "dashboard/facility_confirm_delete.html"
+    model = Facility
     success_url = reverse_lazy("dashboard:facility_list")
+    context_object_name = "facility"
 
     def form_valid(self, form):
-        uploaded_file = form.cleaned_data["file"]
-        decoded_file = TextIOWrapper(uploaded_file.file, encoding="utf-8-sig")
-        reader = csv.DictReader(decoded_file)
-        required_columns = {"name", "district", "province"}
-
-        if not reader.fieldnames:
-            form.add_error("file", "The uploaded CSV file is empty.")
-            return self.form_invalid(form)
-
-        normalized_columns = {column.strip().lower() for column in reader.fieldnames if column}
-        if not required_columns.issubset(normalized_columns):
-            form.add_error("file", "CSV must include the columns: name, district, province.")
-            return self.form_invalid(form)
-
-        created_count = 0
-        skipped_count = 0
-        invalid_rows = []
-
-        with transaction.atomic():
-            for index, row in enumerate(reader, start=2):
-                normalized_row = {
-                    (key or "").strip().lower(): (value or "").strip()
-                    for key, value in row.items()
-                }
-                name = normalized_row.get("name", "")
-                district = normalized_row.get("district", "")
-                province = normalized_row.get("province", "")
-
-                if not name or not district or not province:
-                    invalid_rows.append(index)
-                    continue
-
-                facility, created = Facility.objects.get_or_create(
-                    name=name,
-                    district=district,
-                    province=province,
-                )
-                if created:
-                    created_count += 1
-                else:
-                    skipped_count += 1
-
-        if invalid_rows:
-            messages.warning(
-                self.request,
-                f"Upload completed with skipped rows: {', '.join(str(row) for row in invalid_rows)}.",
-            )
-
-        messages.success(
-            self.request,
-            f"Bulk upload finished. Created {created_count} facilities and skipped {skipped_count} duplicates.",
-        )
+        messages.success(self.request, "Facility deleted successfully.")
         return super().form_valid(form)
 
 
@@ -290,7 +277,7 @@ def export_feedback_csv(request):
     if not (request.user.is_staff or get_or_create_dashboard_profile(request.user).is_dashboard_user):
         return HttpResponse(status=403)
 
-    queryset = filtered_feedback_queryset(request.GET).select_related("facility")
+    queryset = filtered_feedback_queryset(request.user, request.GET).select_related("facility")
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="feedback-export.csv"'
 
@@ -324,7 +311,7 @@ def export_feedback_excel(request):
 
     from openpyxl import Workbook
 
-    queryset = filtered_feedback_queryset(request.GET).select_related("facility")
+    queryset = filtered_feedback_queryset(request.user, request.GET).select_related("facility")
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Feedback"

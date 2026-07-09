@@ -1,70 +1,113 @@
 from django.contrib import messages
+from django.db import transaction
 from django.shortcuts import redirect, render
 
 from facilities.models import Facility
 from .forms import FeedbackForm
 from .models import Feedback
+from .rate_limit import check_submission_rate
+
+FEEDBACK_FACILITY_SESSION_KEY = "feedback_facility_id"
 
 
-def submit_feedback(request):
-    categories = Feedback.Category.choices
-    selected_facility = None
+def _get_selected_facility(form):
+    initial_facility = form.fields["facility"].initial
+    if not initial_facility:
+        return None
 
-    facility_id = (
+    try:
+        return form.fields["facility"].queryset.get(pk=initial_facility)
+    except Facility.DoesNotExist:
+        return None
+
+
+def _build_feedback_base_data(cleaned_data):
+    excluded_fields = {"facility", "comment", "honeypot"}
+    return {
+        field_name: value
+        for field_name, value in cleaned_data.items()
+        if field_name not in excluded_fields
+    }
+
+
+def _resolve_facility_id(request):
+    session_facility_id = request.session.get(FEEDBACK_FACILITY_SESSION_KEY)
+    if request.method == "POST" and session_facility_id:
+        return session_facility_id
+
+    explicit_facility_id = (
         request.GET.get("facility_id")
         or request.GET.get("facility")
         or request.POST.get("facility")
     )
+    if explicit_facility_id:
+        request.session[FEEDBACK_FACILITY_SESSION_KEY] = explicit_facility_id
+        return explicit_facility_id
+
+    return session_facility_id
+
+
+def submit_feedback(request):
+    categories = Feedback.Category.choices
+
+    facility_id = _resolve_facility_id(request)
 
     if request.method == "POST":
-        form = FeedbackForm(request.POST, facility_id=facility_id)
+        post_data = request.POST.copy()
+        if facility_id:
+            post_data["facility"] = str(facility_id)
+        form = FeedbackForm(post_data, facility_id=facility_id)
 
         if form.is_valid():
-            facility = form.cleaned_data["facility"]
-            age_group = form.cleaned_data.get("age_group")
-            gender = form.cleaned_data.get("gender")
-
-            saved_count = 0
-
-            for category_value, category_label in categories:
-                rating_value = request.POST.get(f"rating_{category_value}")
-                comment_value = request.POST.get(f"comment_{category_value}")
-
-                if rating_value:
-                    Feedback.objects.create(
-                        facility=facility,
-                        category=category_value,
-                        rating=int(rating_value),
-                        comment=comment_value or "",
-                        age_group=age_group or "",
-                        gender=gender or "",
-                    )
-                    saved_count += 1
-
-            if saved_count == 0:
-                form.add_error(None, "Please rate at least one category.")
+            if not check_submission_rate(request):
+                form.add_error(None, "Too many submissions from this connection. Please try again later.")
             else:
-                messages.success(request, "Thank you. Your feedback has been submitted.")
-                return redirect("feedback:thank_you")
+                facility = form.cleaned_data["facility"]
+                feedback_base_data = _build_feedback_base_data(form.cleaned_data)
+                pending_entries = []
+
+                for category_value, _category_label in categories:
+                    rating_value = request.POST.get(f"rating_{category_value}")
+                    comment_value = request.POST.get(f"comment_{category_value}")
+
+                    if rating_value:
+                        pending_entries.append(
+                            Feedback(
+                                facility=facility,
+                                category=category_value,
+                                rating=int(rating_value),
+                                comment=comment_value or "",
+                                **feedback_base_data,
+                            )
+                        )
+
+                if not pending_entries:
+                    form.add_error(None, "Please rate at least one category.")
+                else:
+                    with transaction.atomic():
+                        Feedback.objects.bulk_create(pending_entries)
+
+                    request.session[FEEDBACK_FACILITY_SESSION_KEY] = str(facility.pk)
+                    messages.success(request, "Thank you. Your feedback has been submitted.")
+                    return redirect("feedback:thank_you")
     else:
         form = FeedbackForm(facility_id=facility_id)
-
-    initial_facility = form.fields["facility"].initial
-    if initial_facility:
-        try:
-            selected_facility = form.fields["facility"].queryset.get(pk=initial_facility)
-        except Facility.DoesNotExist:
-            selected_facility = None
-        except Exception:
-            selected_facility = None
 
     context = {
         "form": form,
         "categories": categories,
-        "selected_facility": selected_facility,
+        "selected_facility": _get_selected_facility(form),
     }
     return render(request, "feedback/form.html", context)
 
 
 def thank_you(request):
-    return render(request, "feedback/thank_you.html")
+    facility_id = request.session.get(FEEDBACK_FACILITY_SESSION_KEY)
+    facility = None
+    if facility_id:
+        try:
+            facility = Facility.objects.get(pk=facility_id)
+        except Facility.DoesNotExist:
+            request.session.pop(FEEDBACK_FACILITY_SESSION_KEY, None)
+
+    return render(request, "feedback/thank_you.html", {"selected_facility": facility})

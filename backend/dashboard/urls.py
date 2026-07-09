@@ -13,6 +13,7 @@ urlpatterns = [
     path("facilities/new/", views.FacilityCreateView.as_view(), name="facility_create"),
     path("facilities/upload/", views.FacilityBulkUploadView.as_view(), name="facility_bulk_upload"),
     path("facilities/<int:pk>/edit/", views.FacilityUpdateView.as_view(), name="facility_update"),
+    path("facilities/<int:pk>/delete/", views.FacilityDeleteView.as_view(), name="facility_delete"),
     path("facilities/<int:pk>/", views.FacilityDetailView.as_view(), name="facility_detail"),
     path("users/", views.DashboardUserListView.as_view(), name="user_list"),
     path("users/create/", views.DashboardUserCreateView.as_view(), name="user_create"), 
