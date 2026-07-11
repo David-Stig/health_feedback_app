@@ -23,6 +23,90 @@ from .models import get_or_create_dashboard_profile
 
 User = get_user_model()
 
+EXPORT_COLUMNS = [
+    ("Date", lambda entry: entry.created_at.strftime("%Y-%m-%d %H:%M")),
+    ("Facility", lambda entry: entry.facility.name),
+    ("District", lambda entry: entry.facility.district),
+    ("Province", lambda entry: entry.facility.province),
+    ("Rating", lambda entry: entry.rating),
+    ("Category", lambda entry: entry.category),
+    ("Comment", lambda entry: entry.comment),
+    ("Age group", lambda entry: entry.age_group),
+    ("Gender", lambda entry: entry.gender),
+    ("Distance", lambda entry: entry.distance),
+    ("Service", lambda entry: entry.service),
+    ("Service other", lambda entry: entry.service_other),
+    (
+        "Difficulty",
+        lambda entry: ", ".join(entry.difficulty) if isinstance(entry.difficulty, list) else entry.difficulty,
+    ),
+    ("Received service", lambda entry: entry.received_service),
+    ("Reason not received", lambda entry: entry.reason_not_received),
+    ("Reason not received other", lambda entry: entry.reason_not_received_other),
+    ("Referral", lambda entry: entry.referral),
+    ("Facility type", lambda entry: entry.facility_type),
+    ("Facility type other", lambda entry: entry.facility_type_other),
+    ("Payment", lambda entry: entry.payment),
+    ("Insurance", lambda entry: entry.insurance),
+    ("No insurance reason", lambda entry: entry.no_insurance_reason),
+    ("No insurance reason other", lambda entry: entry.no_insurance_reason_other),
+    ("Cash payment", lambda entry: entry.cash_payment),
+    ("Cash payment other", lambda entry: entry.cash_payment_other),
+    ("Cost impact", lambda entry: entry.cost),
+    ("Medicines", lambda entry: entry.medicines),
+    ("Revisit", lambda entry: entry.revisit),
+    ("Chance", lambda entry: entry.chance),
+    ("Reason not chance", lambda entry: entry.reason_not_chance),
+    ("Reason not chance other", lambda entry: entry.reason_not_chance_other),
+    ("Change", lambda entry: entry.change),
+    ("Change other", lambda entry: entry.change_other),
+    ("Anything else", lambda entry: entry.aob),
+    ("Anything else detail", lambda entry: entry.aob_other),
+]
+
+
+def export_row(entry):
+    return [getter(entry) for _label, getter in EXPORT_COLUMNS]
+
+
+def choice_breakdown(queryset, field_name, choices, *, include_blank=False):
+    choice_map = dict(choices)
+    breakdown = list(
+        queryset.values(field_name).annotate(total=Count("id")).order_by("-total")
+    )
+
+    items = []
+    for item in breakdown:
+        raw_value = item[field_name]
+        if not raw_value and not include_blank:
+            continue
+        label = choice_map.get(raw_value, raw_value or "Not provided")
+        items.append({"value": raw_value, "label": label, "total": item["total"]})
+    return items
+
+
+def display_choice(instance, field_name):
+    value = getattr(instance, field_name)
+    if not value:
+        return "Not provided"
+    display_method = getattr(instance, f"get_{field_name}_display", None)
+    return display_method() if callable(display_method) else value
+
+
+def display_text(value, default="Not provided"):
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return value.strip() or default
+    return value
+
+
+def display_choice_list(values, choices):
+    if not values:
+        return "Not provided"
+    choice_map = dict(choices)
+    return ", ".join(choice_map.get(value, value) for value in values)
+
 
 def scoped_feedback_queryset(user):
     queryset = Feedback.objects.select_related("facility").all()
@@ -87,6 +171,41 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
         category_breakdown = list(
             feedback_qs.values("category").annotate(total=Count("id")).order_by("-total")
         )
+        received_service_breakdown = choice_breakdown(
+            feedback_qs,
+            "received_service",
+            Feedback.receivedService.choices,
+        )
+        payment_breakdown = choice_breakdown(
+            feedback_qs,
+            "payment",
+            Feedback.Payment.choices,
+        )
+        medicines_breakdown = choice_breakdown(
+            feedback_qs,
+            "medicines",
+            Feedback.MEDICINES.choices,
+        )
+        revisit_breakdown = choice_breakdown(
+            feedback_qs,
+            "revisit",
+            Feedback.REVISIT.choices,
+        )
+        insurance_breakdown = choice_breakdown(
+            feedback_qs,
+            "insurance",
+            Feedback.INSURANCE.choices,
+        )
+        change_breakdown = choice_breakdown(
+            feedback_qs,
+            "change",
+            Feedback.CHANGE.choices,
+        )
+        reason_not_received_breakdown = choice_breakdown(
+            feedback_qs,
+            "reason_not_received",
+            Feedback.ReasonNotReceived.choices,
+        )
         facility_breakdown = list(
             feedback_qs.values("facility__name").annotate(total=Count("id")).order_by("-total")[:10]
         )
@@ -101,6 +220,13 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
                 "average_rating": round(feedback_qs.aggregate(avg=Avg("rating"))["avg"] or 0, 2),
                 "gender_breakdown": gender_breakdown,
                 "category_breakdown": category_breakdown,
+                "received_service_breakdown": received_service_breakdown,
+                "payment_breakdown": payment_breakdown,
+                "medicines_breakdown": medicines_breakdown,
+                "revisit_breakdown": revisit_breakdown,
+                "insurance_breakdown": insurance_breakdown,
+                "change_breakdown": change_breakdown,
+                "reason_not_received_breakdown": reason_not_received_breakdown,
                 "facility_breakdown": facility_breakdown,
                 "province_breakdown": province_breakdown,
                 "trend_labels": [item["day"].strftime("%Y-%m-%d") for item in trend_data],
@@ -108,10 +234,20 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
                 "trend_ratings": [round(item["average_rating"] or 0, 2) for item in trend_data],
                 "gender_labels": [item["gender"] for item in gender_breakdown],
                 "gender_totals": [item["total"] for item in gender_breakdown],
-                "distance_labels": [item["distance"] for item in distance_breakdown],
-                "distance_totals": [item["total"] for item in distance_breakdown],
                 "category_labels": [item["category"] for item in category_breakdown],
                 "category_totals": [item["total"] for item in category_breakdown],
+                "received_service_labels": [item["label"] for item in received_service_breakdown],
+                "received_service_totals": [item["total"] for item in received_service_breakdown],
+                "payment_labels": [item["label"] for item in payment_breakdown],
+                "payment_totals": [item["total"] for item in payment_breakdown],
+                "medicines_labels": [item["label"] for item in medicines_breakdown],
+                "medicines_totals": [item["total"] for item in medicines_breakdown],
+                "revisit_labels": [item["label"] for item in revisit_breakdown],
+                "revisit_totals": [item["total"] for item in revisit_breakdown],
+                "insurance_labels": [item["label"] for item in insurance_breakdown],
+                "insurance_totals": [item["total"] for item in insurance_breakdown],
+                "change_labels": [item["label"] for item in change_breakdown],
+                "change_totals": [item["total"] for item in change_breakdown],
             }
         )
         return context
@@ -120,7 +256,7 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
 class FeedbackListView(DashboardAccessMixin, ListView):
     template_name = "dashboard/feedback_list.html"
     model = Feedback
-    paginate_by = 20
+    paginate_by = 10
     context_object_name = "feedback_entries"
 
     def get_queryset(self):
@@ -132,6 +268,90 @@ class FeedbackListView(DashboardAccessMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["filter_form"] = self.filter_form
+        query_params = self.request.GET.copy()
+        query_params.pop("page", None)
+        context["current_filters"] = query_params.urlencode()
+        return context
+
+
+class FeedbackDetailView(DashboardAccessMixin, DetailView):
+    template_name = "dashboard/feedback_detail.html"
+    model = Feedback
+    context_object_name = "entry"
+
+    def get_queryset(self):
+        return scoped_feedback_queryset(self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        entry = self.object
+        context["sections"] = [
+            (
+                "Response overview",
+                [
+                    ("Submitted", entry.created_at.strftime("%Y-%m-%d %H:%M")),
+                    ("Facility", entry.facility.name),
+                    ("District", entry.facility.district),
+                    ("Province", entry.facility.province),
+                    ("Rating", entry.rating),
+                    ("Category", display_choice(entry, "category")),
+                ],
+            ),
+            (
+                "Respondent and visit details",
+                [
+                    ("Age group", display_choice(entry, "age_group")),
+                    ("Gender", display_choice(entry, "gender")),
+                    ("Distance from facility", display_choice(entry, "distance")),
+                    ("Main service for today", display_choice(entry, "service")),
+                    ("Service other", display_text(entry.service_other)),
+                    ("Difficulty", display_choice_list(entry.difficulty, Feedback.Difficulty.choices)),
+                ],
+            ),
+            (
+                "Service coverage",
+                [
+                    ("Received service", display_choice(entry, "received_service")),
+                    ("Reason not received", display_choice(entry, "reason_not_received")),
+                    ("Reason not received other", display_text(entry.reason_not_received_other)),
+                    ("Referral", display_choice(entry, "referral")),
+                    ("Facility type", display_choice(entry, "facility_type")),
+                    ("Facility type other", display_text(entry.facility_type_other)),
+                ],
+            ),
+            (
+                "Costs and access",
+                [
+                    ("Paid today", display_choice(entry, "payment")),
+                    ("Insurance", display_choice(entry, "insurance")),
+                    ("No insurance reason", display_choice(entry, "no_insurance_reason")),
+                    ("No insurance reason other", display_text(entry.no_insurance_reason_other)),
+                    ("Cash payment", display_choice(entry, "cash_payment")),
+                    ("Cash payment other", display_text(entry.cash_payment_other)),
+                    ("Cost affected care", display_choice(entry, "cost")),
+                ],
+            ),
+            (
+                "Quality and UHC",
+                [
+                    ("Got medicines", display_choice(entry, "medicines")),
+                    ("Would revisit", display_choice(entry, "revisit")),
+                    ("Equal chance of getting care", display_choice(entry, "chance")),
+                    ("Reason not chance", display_choice(entry, "reason_not_chance")),
+                    ("Reason not chance other", display_text(entry.reason_not_chance_other)),
+                    ("What should change", display_choice(entry, "change")),
+                    ("Change other", display_text(entry.change_other)),
+                ],
+            ),
+            (
+                "Comments",
+                [
+                    ("Additional comments", display_text(entry.comment)),
+                    ("Anything else", display_choice(entry, "aob")),
+                    ("Anything else detail", display_text(entry.aob_other)),
+                ],
+            ),
+        ]
         return context
 
 
@@ -283,21 +503,11 @@ def export_feedback_csv(request):
 
 
     writer = csv.writer(response)
-    writer.writerow(["Date", "Facility", "District", "Province", "Rating", "Category", "Comment"])
+    writer.writerow([label for label, _getter in EXPORT_COLUMNS])
 
 
     for entry in queryset:
-        writer.writerow(
-            [
-                entry.created_at.strftime("%Y-%m-%d %H:%M"),
-                entry.facility.name,
-                entry.facility.district,
-                entry.facility.province,
-                entry.rating,
-                entry.category,
-                entry.comment,
-            ]
-        )
+        writer.writerow(export_row(entry))
 
 
     return response
@@ -315,20 +525,10 @@ def export_feedback_excel(request):
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Feedback"
-    sheet.append(["Date", "Facility", "District", "Province", "Rating", "Category", "Comment"])
+    sheet.append([label for label, _getter in EXPORT_COLUMNS])
 
     for entry in queryset:
-        sheet.append(
-            [
-                entry.created_at.strftime("%Y-%m-%d %H:%M"),
-                entry.facility.name,
-                entry.facility.district,
-                entry.facility.province,
-                entry.rating,
-                entry.category,
-                entry.comment,
-            ]
-        )
+        sheet.append(export_row(entry))
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

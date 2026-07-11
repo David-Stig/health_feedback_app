@@ -26,7 +26,7 @@
 
 <section class="chart-grid">
     <article class="panel">
-        <h2>Complaints by category</h2>
+        <h2>Ratings by category</h2>
         <canvas id="categoryChart"></canvas>
     </article>
     <article class="panel">
@@ -34,24 +34,51 @@
         <canvas id="trendChart"></canvas>
     </article>
     <article class="panel">
-        <h2>Category distribution</h2>
-        <canvas id="provinceChart"></canvas>
+        <h2>Received all services needed</h2>
+        <canvas id="receivedServiceChart"></canvas>
     </article>
-    
 </section>
 
 <section class="chart-grid">
     <article class="panel">
-        <h2>Gender distribution</h2>
-        <canvas id="genderChart"></canvas>
+        <h2>Paid out of pocket</h2>
+        <canvas id="paymentChart"></canvas>
     </article>
     <article class="panel">
-        <h2>Distance distribution</h2>
-        <canvas id="distanceChart"></canvas>
+        <h2>Got medicines here</h2>
+        <canvas id="medicinesChart"></canvas>
+    </article>
+    <article class="panel">
+        <h2>Would come back</h2>
+        <canvas id="revisitChart"></canvas>
+    </article>
+</section>
+
+<section class="chart-grid">
+    <article class="panel">
+        <h2>Insurance used</h2>
+        <canvas id="insuranceChart"></canvas>
+    </article>
+    <article class="panel">
+        <h2>Suggested top change</h2>
+        <canvas id="changeChart"></canvas>
     </article>
 </section>
 
 <section class="table-grid">
+    <article class="panel">
+        <h2>Top reasons services were not received</h2>
+        <table class="data-table">
+            <thead><tr><th>Reason</th><th>Responses</th></tr></thead>
+            <tbody>
+                {% for item in reason_not_received_breakdown %}
+                    <tr><td>{{ item.label }}</td><td>{{ item.total }}</td></tr>
+                {% empty %}
+                    <tr><td colspan="2">No missing-service reasons captured yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
     <article class="panel">
         <h2>Top facilities</h2>
         <table class="data-table">
@@ -85,20 +112,37 @@
 {{ trend_ratings|json_script:"trend-ratings" }}
 {{ category_labels|json_script:"category-labels" }}
 {{ category_totals|json_script:"category-totals" }}
-{{ gender_labels|json_script:"gender-labels" }}
-{{ gender_totals|json_script:"gender-totals" }}
-{{ distance_labels|json_script:"distance-labels" }}
-{{ distance_totals|json_script:"distance-totals" }}
+{{ received_service_labels|json_script:"received-service-labels" }}
+{{ received_service_totals|json_script:"received-service-totals" }}
+{{ payment_labels|json_script:"payment-labels" }}
+{{ payment_totals|json_script:"payment-totals" }}
+{{ medicines_labels|json_script:"medicines-labels" }}
+{{ medicines_totals|json_script:"medicines-totals" }}
+{{ revisit_labels|json_script:"revisit-labels" }}
+{{ revisit_totals|json_script:"revisit-totals" }}
+{{ insurance_labels|json_script:"insurance-labels" }}
+{{ insurance_totals|json_script:"insurance-totals" }}
+{{ change_labels|json_script:"change-labels" }}
+{{ change_totals|json_script:"change-totals" }}
 <script>
     const trendLabels = JSON.parse(document.getElementById("trend-labels").textContent);
     const trendTotals = JSON.parse(document.getElementById("trend-totals").textContent);
     const trendRatings = JSON.parse(document.getElementById("trend-ratings").textContent);
     const categoryLabels = JSON.parse(document.getElementById("category-labels").textContent);
-    const genderLabels = JSON.parse(document.getElementById("gender-labels").textContent);
-    const genderTotals = JSON.parse(document.getElementById("gender-totals").textContent);
     const categoryTotals = JSON.parse(document.getElementById("category-totals").textContent);
-    const distanceLabels = JSON.parse(document.getElementById("distance-labels").textContent);
-    const distanceTotals = JSON.parse(document.getElementById("distance-totals").textContent);
+    const receivedServiceLabels = JSON.parse(document.getElementById("received-service-labels").textContent);
+    const receivedServiceTotals = JSON.parse(document.getElementById("received-service-totals").textContent);
+    const paymentLabels = JSON.parse(document.getElementById("payment-labels").textContent);
+    const paymentTotals = JSON.parse(document.getElementById("payment-totals").textContent);
+    const medicinesLabels = JSON.parse(document.getElementById("medicines-labels").textContent);
+    const medicinesTotals = JSON.parse(document.getElementById("medicines-totals").textContent);
+    const revisitLabels = JSON.parse(document.getElementById("revisit-labels").textContent);
+    const revisitTotals = JSON.parse(document.getElementById("revisit-totals").textContent);
+    const insuranceLabels = JSON.parse(document.getElementById("insurance-labels").textContent);
+    const insuranceTotals = JSON.parse(document.getElementById("insurance-totals").textContent);
+    const changeLabels = JSON.parse(document.getElementById("change-labels").textContent);
+    const changeTotals = JSON.parse(document.getElementById("change-totals").textContent);
+    const palette = ["#0f4c5c", "#2c7da0", "#468faf", "#89c2d9", "#a9d6e5", "#f0b429", "#ef476f"];
     new Chart(document.getElementById("categoryChart"), {
         type: "bar",
         data: {
@@ -124,27 +168,63 @@
         }
     });
 
-    new Chart(document.getElementById("provinceChart"), {
+    new Chart(document.getElementById("receivedServiceChart"), {
         type: "pie",
         data: {
-            labels: categoryLabels,
-            datasets: [{ data: categoryTotals, backgroundColor: ["#0f4c5c", "#2c7da0", "#468faf", "#89c2d9", "#a9d6e5", "#f0b429", "#ef476f"] }]
+            labels: receivedServiceLabels,
+            datasets: [{ data: receivedServiceTotals, backgroundColor: palette }]
         }
     });
 
-    new Chart(document.getElementById("genderChart"), {
+    new Chart(document.getElementById("paymentChart"), {
         type: "pie",
         data: {
-            labels: genderLabels,
-            datasets: [{ data: genderTotals, backgroundColor: ["#0f4c5c", "#2c7da0", "#468faf", "#89c2d9", "#a9d6e5", "#f0b429", "#ef476f"] }]
+            labels: paymentLabels,
+            datasets: [{ data: paymentTotals, backgroundColor: palette }]
         }
     });
 
-    new Chart(document.getElementById("distanceChart"), {
+    new Chart(document.getElementById("medicinesChart"), {
         type: "pie",
         data: {
-            labels: distanceLabels,
-            datasets: [{ data: distanceTotals, backgroundColor: ["#0f4c5c", "#2c7da0", "#468faf", "#89c2d9", "#a9d6e5", "#f0b429", "#ef476f"] }]
+            labels: medicinesLabels,
+            datasets: [{ data: medicinesTotals, backgroundColor: palette }]
+        }
+    });
+
+    new Chart(document.getElementById("revisitChart"), {
+        type: "pie",
+        data: {
+            labels: revisitLabels,
+            datasets: [{ data: revisitTotals, backgroundColor: palette }]
+        }
+    });
+
+    new Chart(document.getElementById("insuranceChart"), {
+        type: "bar",
+        data: {
+            labels: insuranceLabels,
+            datasets: [{ label: "Responses", data: insuranceTotals, backgroundColor: "#2c7da0" }]
+        },
+        options: {
+            indexAxis: "y",
+            scales: {
+                x: { beginAtZero: true }
+            }
+        }
+    });
+
+    new Chart(document.getElementById("changeChart"), {
+        type: "bar",
+        data: {
+            labels: changeLabels,
+            datasets: [{ label: "Responses", data: changeTotals, backgroundColor: "#f0b429" }]
+        },
+        options: {
+            indexAxis: "y",
+            scales: {
+                x: { beginAtZero: true }
+            }
         }
     });
 </script>

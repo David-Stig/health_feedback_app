@@ -29,17 +29,6 @@
             <h2>QR code</h2>
             {% if facility.qr_code %}
                 <img class="qr-preview" src="{{ facility.qr_code.url }}" alt="QR code for {{ facility.name }}">
-                <label class="qr-debug-field">
-                    <span>QR encoded URL</span>
-                    <input
-                        type="text"
-                        class="form-control qr-debug-input"
-                        value="{{ facility.get_feedback_url }}"
-                        readonly
-                        onclick="this.select();"
-                    >
-                </label>
-                <p class="subtle">Scan the QR and compare the opened address with this exact URL.</p>
                 <div class="action-row facility-qr-actions">
                     <a class="button-secondary" href="{% url 'facilities:download_qr' facility.pk %}">Download QR</a>
                     {% if request.user.is_staff %}

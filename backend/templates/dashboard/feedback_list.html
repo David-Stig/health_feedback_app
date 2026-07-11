@@ -32,14 +32,14 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>Date</th>
+                    <th>Submitted</th>
                     <th>Facility</th>
-                    <th>District</th>
-                    <th>Province</th>
+                    <th>Location</th>
                     <th>Rating</th>
-                    <th>Gender</th>
-                    <th>Category</th>
-                    <th>Comment</th>
+                    <th>Main service</th>
+                    <th>Received service</th>
+                    <th>Medicines</th>
+                    <th>Details</th>
                 </tr>
             </thead>
             <tbody>
@@ -47,12 +47,14 @@
                     <tr>
                         <td>{{ entry.created_at|date:"Y-m-d H:i" }}</td>
                         <td>{{ entry.facility.name }}</td>
-                        <td>{{ entry.facility.district }}</td>
-                        <td>{{ entry.facility.province }}</td>
+                        <td>{{ entry.facility.district }}, {{ entry.facility.province }}</td>
                         <td>{{ entry.rating }}</td>
-                        <td>{{ entry.gender }}</td>
-                        <td>{{ entry.category }}</td>
-                        <td>{{ entry.comment|default:"-" }}</td>
+                        <td>{{ entry.service|default:"-" }}</td>
+                        <td>{{ entry.received_service|default:"-" }}</td>
+                        <td>{{ entry.medicines|default:"-" }}</td>
+                        <td>
+                            <a class="button-secondary" href="{% url 'dashboard:feedback_detail' entry.pk %}">View full response</a>
+                        </td>
                     </tr>
                 {% empty %}
                     <tr><td colspan="8">No feedback matches the current filters.</td></tr>
@@ -60,5 +62,22 @@
             </tbody>
         </table>
     </div>
+
+    {% if is_paginated %}
+        <div class="action-row pagination-row">
+            <div class="subtle">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ paginator.count }} responses
+            </div>
+            <div class="action-row">
+                {% if page_obj.has_previous %}
+                    <a class="button-secondary" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                {% endif %}
+                <span class="pagination-status">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a class="button-secondary" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
 </section>
 {% endblock %}

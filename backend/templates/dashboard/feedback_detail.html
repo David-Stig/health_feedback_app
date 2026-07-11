@@ -1,0 +1,35 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Feedback Response Detail{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Submission detail</p>
+            <h1>Full feedback response</h1>
+            <p class="subtle">{{ entry.facility.name }} · {{ entry.created_at|date:"Y-m-d H:i" }}</p>
+        </div>
+        <div class="action-row">
+            <a class="button-secondary" href="{% url 'dashboard:feedback_list' %}">Back to submissions</a>
+            <a class="button-secondary" href="{% url 'dashboard:facility_detail' entry.facility.pk %}">Open facility</a>
+        </div>
+    </div>
+
+    <div class="detail-grid">
+        {% for heading, rows in sections %}
+            <article class="info-card">
+                <h2>{{ heading }}</h2>
+                <dl class="response-detail-list">
+                    {% for label, value in rows %}
+                        <div class="response-detail-row">
+                            <dt>{{ label }}</dt>
+                            <dd>{{ value }}</dd>
+                        </div>
+                    {% endfor %}
+                </dl>
+            </article>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

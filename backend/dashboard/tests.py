@@ -1,10 +1,13 @@
 import tempfile
+import csv
+from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from dashboard.models import DashboardUserProfile
+from dashboard.views import EXPORT_COLUMNS
 from facilities.forms import FacilityForm
 from facilities.models import Facility
 from feedback.models import Feedback
@@ -47,6 +50,24 @@ class DashboardAccessTests(TestCase):
         }
         self.assertEqual(returned_facilities, {"Facility A"})
 
+    def test_feedback_list_paginates_to_ten_responses(self):
+        for _ in range(11):
+            Feedback.objects.create(
+                facility=self.facility_a,
+                category=Feedback.Category.WAITING_TIME,
+                rating=5,
+                gender=Feedback.Gender.FEMALE,
+            )
+
+        self.client.login(username="dash", password="secret123")
+
+        response = self.client.get(reverse("dashboard:feedback_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["is_paginated"])
+        self.assertEqual(response.context["paginator"].per_page, 10)
+        self.assertEqual(len(response.context["feedback_entries"]), 10)
+
     def test_dashboard_user_export_is_scoped_to_assigned_facility(self):
         self.client.login(username="dash", password="secret123")
 
@@ -56,6 +77,84 @@ class DashboardAccessTests(TestCase):
         content = response.content.decode("utf-8")
         self.assertIn("Facility A", content)
         self.assertNotIn("Facility B", content)
+
+    def test_dashboard_export_includes_extended_feedback_fields(self):
+        Feedback.objects.filter(facility=self.facility_a).update(
+            age_group=Feedback.AgeGroup.AGE_25_34,
+            distance=Feedback.Distance.LESS_THAN_5KM,
+            service=Feedback.Service.OTHER,
+            service_other="Mental health consultation",
+            difficulty=[Feedback.Difficulty.HEARING, Feedback.Difficulty.MOBILITY],
+            received_service=Feedback.receivedService.PARTIALLY,
+            reason_not_received=Feedback.ReasonNotReceived.MEDICINE,
+            reason_not_received_other="",
+            referral=Feedback.Referral.YES,
+            facility_type=Feedback.FacilityType.HOSPITAL,
+            payment=Feedback.Payment.YES,
+            insurance=Feedback.INSURANCE.NONE,
+            no_insurance_reason=Feedback.NO_INSURANCE_REASON.CASH,
+            cash_payment=Feedback.CASH.BETWEEN,
+            cash_payment_other="",
+            cost=Feedback.COST.YES,
+            medicines=Feedback.MEDICINES.NO_PHARMACY,
+            revisit=Feedback.REVISIT.NOT_SURE,
+            chance=Feedback.CHANCE.NO,
+            reason_not_chance=Feedback.REASON_NOT_CHANCE.FAR,
+            reason_not_chance_other="",
+            change=Feedback.CHANGE.OTHER,
+            change_other="Improve triage",
+            aob=Feedback.AOB.YES,
+            aob_other="Waiting area needs seating",
+        )
+        self.client.login(username="dash", password="secret123")
+
+        response = self.client.get(reverse("dashboard:export_csv"))
+
+        rows = list(csv.reader(StringIO(response.content.decode("utf-8"))))
+        self.assertEqual(rows[0], [label for label, _getter in EXPORT_COLUMNS])
+        self.assertIn("Mental health consultation", rows[1])
+        self.assertIn("Hearing (even with hearing aid), Walking or climbing steps", rows[1])
+        self.assertIn("Improve triage", rows[1])
+        self.assertIn("Waiting area needs seating", rows[1])
+
+    def test_dashboard_home_includes_new_analytics_context(self):
+        Feedback.objects.filter(facility=self.facility_a).update(
+            received_service=Feedback.receivedService.PARTIALLY,
+            payment=Feedback.Payment.YES,
+            medicines=Feedback.MEDICINES.NO_PHARMACY,
+            revisit=Feedback.REVISIT.YES,
+            insurance=Feedback.INSURANCE.NHIMA,
+            change=Feedback.CHANGE.MORE_MEDICINES,
+            reason_not_received=Feedback.ReasonNotReceived.MEDICINE,
+        )
+        self.client.login(username="dash", password="secret123")
+
+        response = self.client.get(reverse("dashboard:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("received_service_breakdown", response.context)
+        self.assertIn("payment_breakdown", response.context)
+        self.assertIn("medicines_breakdown", response.context)
+        self.assertIn("revisit_breakdown", response.context)
+        self.assertIn("insurance_breakdown", response.context)
+        self.assertIn("change_breakdown", response.context)
+        self.assertIn("reason_not_received_breakdown", response.context)
+
+    def test_dashboard_user_can_open_detail_for_assigned_facility_feedback_only(self):
+        visible_feedback = Feedback.objects.filter(facility=self.facility_a).first()
+        hidden_feedback = Feedback.objects.filter(facility=self.facility_b).first()
+        self.client.login(username="dash", password="secret123")
+
+        visible_response = self.client.get(
+            reverse("dashboard:feedback_detail", args=[visible_feedback.pk])
+        )
+        hidden_response = self.client.get(
+            reverse("dashboard:feedback_detail", args=[hidden_feedback.pk])
+        )
+
+        self.assertEqual(visible_response.status_code, 200)
+        self.assertEqual(visible_response.context["entry"].facility, self.facility_a)
+        self.assertEqual(hidden_response.status_code, 404)
 
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
