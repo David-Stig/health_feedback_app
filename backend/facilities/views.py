@@ -8,6 +8,7 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 
 from .models import Facility
+from .services import build_feedback_poster_pdf, poster_filename_for_facility
 
 
 def _staff_required(user):
@@ -64,6 +65,28 @@ def download_qr_code(request, pk):
         labeled_qr,
         as_attachment=True,
         filename=download_name,
+    )
+
+
+@login_required
+@user_passes_test(_staff_required)
+def download_feedback_poster(request, pk):
+    facility = get_object_or_404(Facility, pk=pk)
+
+    try:
+        poster_buffer = build_feedback_poster_pdf(facility)
+    except Exception:
+        messages.error(
+            request,
+            f"Unable to generate the feedback poster for {facility.name}. Please try again.",
+        )
+        return redirect("dashboard:facility_detail", pk=facility.pk)
+
+    return FileResponse(
+        poster_buffer,
+        as_attachment=True,
+        filename=poster_filename_for_facility(facility),
+        content_type="application/pdf",
     )
 
 

@@ -112,3 +112,15 @@ class FacilityQrBulkRegenerationTests(TestCase):
         image = Image.open(BytesIO(image_bytes))
 
         self.assertGreater(image.height, image.width)
+
+    def test_staff_user_can_download_feedback_poster_pdf(self):
+        self.client.login(username="staff", password="secret123")
+
+        response = self.client.get(reverse("facilities:download_poster", args=[self.facility_a.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn("a-clinic-feedback-poster.pdf", response["Content-Disposition"])
+
+        pdf_bytes = b"".join(response.streaming_content)
+        self.assertTrue(pdf_bytes.startswith(b"%PDF"))

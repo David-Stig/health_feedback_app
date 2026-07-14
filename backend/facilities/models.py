@@ -45,14 +45,16 @@ class Facility(models.Model):
         base_url = self._normalized_site_url()
         return f"{base_url}{reverse('feedback:facility_submit', kwargs={'facility_id': self.pk})}"
 
-    def generate_qr_code(self, save: bool = True) -> None:
+    def build_qr_image(self):
         import qrcode
 
         qr = qrcode.QRCode(box_size=10, border=2)
         qr.add_data(self.get_feedback_url())
         qr.make(fit=True)
+        return qr.make_image(fill_color="black", back_color="white")
 
-        image = qr.make_image(fill_color="black", back_color="white")
+    def generate_qr_code(self, save: bool = True) -> None:
+        image = self.build_qr_image()
         buffer = BytesIO()
         image.save(buffer, format="PNG")
         facility_slug = slugify(self.name) or f"facility-{self.pk}"

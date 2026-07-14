@@ -31,6 +31,7 @@
                 <img class="qr-preview" src="{{ facility.qr_code.url }}" alt="QR code for {{ facility.name }}">
                 <div class="action-row facility-qr-actions">
                     <a class="button-secondary" href="{% url 'facilities:download_qr' facility.pk %}">Download QR</a>
+                    <a class="button-secondary" href="{% url 'facilities:download_poster' facility.pk %}">Download Feedback Poster</a>
                     {% if request.user.is_staff %}
                         <form method="post" action="{% url 'facilities:regenerate_qr' facility.pk %}">
                             {% csrf_token %}
