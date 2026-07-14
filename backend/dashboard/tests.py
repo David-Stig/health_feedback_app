@@ -190,3 +190,61 @@ class FacilityManagementTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn("district", form.errors)
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+class DashboardUserManagementTests(TestCase):
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username="staff-admin",
+            password="secret123",
+            is_staff=True,
+        )
+        self.dashboard_user = User.objects.create_user(
+            username="field-user",
+            password="oldpassword123",
+        )
+
+    def test_staff_user_can_reset_dashboard_user_password(self):
+        self.client.login(username="staff-admin", password="secret123")
+
+        response = self.client.post(
+            reverse("dashboard:user_password_reset", args=[self.dashboard_user.pk]),
+            data={
+                "new_password1": "newsecurepass456",
+                "new_password2": "newsecurepass456",
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard:user_list"))
+        self.dashboard_user.refresh_from_db()
+        self.assertTrue(self.dashboard_user.check_password("newsecurepass456"))
+
+    def test_non_staff_user_cannot_access_password_reset_view(self):
+        self.client.login(username="field-user", password="oldpassword123")
+
+        response = self.client.get(
+            reverse("dashboard:user_password_reset", args=[self.dashboard_user.pk])
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_staff_user_can_delete_non_admin_user(self):
+        self.client.login(username="staff-admin", password="secret123")
+
+        response = self.client.post(
+            reverse("dashboard:user_delete", args=[self.dashboard_user.pk])
+        )
+
+        self.assertRedirects(response, reverse("dashboard:user_list"))
+        self.assertFalse(User.objects.filter(pk=self.dashboard_user.pk).exists())
+
+    def test_staff_user_cannot_delete_admin_account(self):
+        self.client.login(username="staff-admin", password="secret123")
+
+        response = self.client.post(
+            reverse("dashboard:user_delete", args=[self.staff_user.pk])
+        )
+
+        self.assertRedirects(response, reverse("dashboard:user_list"))
+        self.assertTrue(User.objects.filter(pk=self.staff_user.pk).exists())

@@ -1,26 +1,39 @@
 {% extends "public_base.html" %}
+{% load static %}
 
 {% block title %}Admin Login | Health Facility Feedback System{% endblock %}
+{% block page_class %}login-page{% endblock %}
 
 {% block content %}
-<section class="auth-card">
-    <div>
-        <p class="eyebrow">Secure Dashboard</p>
-        <h1>Admin login</h1>
-        <p class="subtle">Use your staff account to manage facilities, review submissions, and export reports.</p>
+<section class="login-shell">
+    <div class="login-brand">
+        <img src="{% static 'images/CRHE_logo.png' %}" alt="CRHE Logo" class="login-logo">
     </div>
-    <form method="post" class="stack">
-        {% csrf_token %}
-        {{ form.non_field_errors }}
-        <label>
-            Username
-            {{ form.username }}
-        </label>
-        <label>
-            Password
-            {{ form.password }}
-        </label>
-        <button type="submit" class="button-primary">Sign in</button>
-    </form>
+
+    <section class="auth-card login-card">
+        <div class="login-card-header">
+            <p class="eyebrow">Secure Dashboard</p>
+            <h1>Admin login</h1>
+            <p class="subtle">Use your staff account to manage facilities, review submissions, and export reports.</p>
+        </div>
+
+        <form method="post" class="stack login-form">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="message error">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+            <label>
+                Username
+                {{ form.username }}
+            </label>
+            <label>
+                Password
+                {{ form.password }}
+            </label>
+            <button type="submit" class="button-primary button-full">Sign in</button>
+        </form>
+    </section>
 </section>
 {% endblock %}

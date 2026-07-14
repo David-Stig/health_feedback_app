@@ -9,6 +9,7 @@ from django.db import transaction
 from django.db.models import Avg, Count
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, DetailView, FormView, ListView, TemplateView, UpdateView
@@ -17,7 +18,7 @@ from facilities.forms import BulkFacilityUploadForm, FacilityForm, ZAMBIA_PROVIN
 from facilities.models import Facility
 from feedback.models import Feedback
 
-from .forms import DashboardUserCreationForm, FeedbackFilterForm
+from .forms import DashboardUserCreationForm, DashboardUserPasswordResetForm, FeedbackFilterForm
 from .mixins import DashboardAccessMixin, StaffRequiredMixin
 from .models import get_or_create_dashboard_profile
 
@@ -558,4 +559,51 @@ class DashboardUserCreateView(StaffRequiredMixin, FormView):
     def form_valid(self, form):
         form.save()
         messages.success(self.request, "User created successfully.")
+        return super().form_valid(form)
+
+
+class DashboardUserPasswordResetView(StaffRequiredMixin, FormView):
+    template_name = "dashboard/user_password_reset.html"
+    form_class = DashboardUserPasswordResetForm
+    success_url = reverse_lazy("dashboard:user_list")
+
+    def dispatch(self, request, *args, **kwargs):
+        self.target_user = get_object_or_404(User, pk=kwargs["pk"])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.target_user
+        return kwargs
+
+    def form_valid(self, form):
+        form.save()
+        messages.success(
+            self.request,
+            f"Password reset successfully for {self.target_user.username}.",
+        )
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["target_user"] = self.target_user
+        return context
+
+
+class DashboardUserDeleteView(StaffRequiredMixin, DeleteView):
+    template_name = "dashboard/user_confirm_delete.html"
+    model = User
+    success_url = reverse_lazy("dashboard:user_list")
+    context_object_name = "target_user"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if self.object.is_staff:
+            messages.error(request, "Admin accounts cannot be deleted from user management.")
+            return redirect("dashboard:user_list")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        username = self.object.username
+        messages.success(self.request, f"User account {username} deleted successfully.")
         return super().form_valid(form)

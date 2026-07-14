@@ -200,6 +200,56 @@ button,
     margin: 3rem auto;
 }
 
+.login-page {
+    display: flex;
+    justify-content: center;
+}
+
+.login-shell {
+    width: min(100%, 520px);
+    margin: 0 auto;
+    display: grid;
+    gap: 1.5rem;
+    justify-items: center;
+}
+
+.login-brand {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.login-logo {
+    width: min(220px, 65vw);
+    height: auto;
+    display: block;
+}
+
+.login-card {
+    width: 100%;
+    margin: 0;
+    padding: 2rem;
+    display: grid;
+    gap: 1.5rem;
+}
+
+.login-card-header {
+    display: grid;
+    gap: 0.65rem;
+    text-align: center;
+}
+
+.login-card-header h1,
+.login-card-header .eyebrow,
+.login-card-header .subtle {
+    margin: 0;
+}
+
+.login-form {
+    width: 100%;
+    gap: 1.1rem;
+}
+
 .eyebrow {
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -447,5 +497,9 @@ textarea {
     .facility-qr-actions .button-secondary {
         width: 100%;
         min-width: 0;
+    }
+
+    .login-card {
+        padding: 1.5rem;
     }
 }

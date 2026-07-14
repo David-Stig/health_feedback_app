@@ -79,6 +79,17 @@ class FeedbackSubmissionTests(TestCase):
         self.assertContains(second_response, "Too many submissions from this connection")
         self.assertEqual(Feedback.objects.count(), 2)
 
+    def test_submission_with_honeypot_medicine_field_is_rejected(self):
+        payload = self._valid_payload()
+        payload["medicine"] = "spam bot value"
+
+        response = self.client.post(self.facility_url, data=payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("medicine", response.context["form"].errors)
+        self.assertIn("Spam detected.", response.context["form"].errors["medicine"])
+        self.assertEqual(Feedback.objects.count(), 0)
+
     def test_submit_another_response_keeps_same_facility_locked(self):
         self.client.post(self.facility_url, data=self._valid_payload())
 
@@ -86,7 +97,7 @@ class FeedbackSubmissionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["selected_facility"], self.facility)
-        self.assertQuerysetEqual(
+        self.assertQuerySetEqual(
             response.context["form"].fields["facility"].queryset.order_by("pk"),
             [self.facility],
             transform=lambda facility: facility,

@@ -22,7 +22,7 @@ def _get_selected_facility(form):
 
 
 def _build_feedback_base_data(cleaned_data):
-    excluded_fields = {"facility", "comment", "honeypot"}
+    excluded_fields = {"facility", "comment", "medicine"}
     return {
         field_name: value
         for field_name, value in cleaned_data.items()

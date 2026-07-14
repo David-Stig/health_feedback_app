@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import SetPasswordForm, UserCreationForm
 
 from facilities.models import Facility
 from feedback.models import Feedback
@@ -69,3 +69,10 @@ class DashboardUserCreationForm(UserCreationForm):
             profile.facility = self.cleaned_data.get("facility")
             profile.save()
         return user
+
+
+class DashboardUserPasswordResetForm(SetPasswordForm):
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(user, *args, **kwargs)
+        self.fields["new_password1"].widget.attrs.update({"class": "form-control"})
+        self.fields["new_password2"].widget.attrs.update({"class": "form-control"})

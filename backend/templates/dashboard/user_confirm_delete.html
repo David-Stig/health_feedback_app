@@ -1,0 +1,19 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Delete User{% endblock %}
+
+{% block content %}
+<section class="panel stack">
+    <p class="eyebrow">User Management</p>
+    <h1>Delete user account</h1>
+    <p>You are about to delete <strong>{{ target_user.username }}</strong>.</p>
+    <p class="subtle">{{ target_user.email|default:"No email address provided." }}</p>
+    <p class="subtle">This removes the dashboard login for this user. Admin accounts cannot be deleted here.</p>
+
+    <form method="post" class="action-row form-actions">
+        {% csrf_token %}
+        <button type="submit" class="button-danger">Delete user</button>
+        <a class="button-secondary" href="{% url 'dashboard:user_list' %}">Cancel</a>
+    </form>
+</section>
+{% endblock %}

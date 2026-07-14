@@ -17,5 +17,7 @@ urlpatterns = [
     path("facilities/<int:pk>/delete/", views.FacilityDeleteView.as_view(), name="facility_delete"),
     path("facilities/<int:pk>/", views.FacilityDetailView.as_view(), name="facility_detail"),
     path("users/", views.DashboardUserListView.as_view(), name="user_list"),
-    path("users/create/", views.DashboardUserCreateView.as_view(), name="user_create"), 
+    path("users/create/", views.DashboardUserCreateView.as_view(), name="user_create"),
+    path("users/<int:pk>/reset-password/", views.DashboardUserPasswordResetView.as_view(), name="user_password_reset"),
+    path("users/<int:pk>/delete/", views.DashboardUserDeleteView.as_view(), name="user_delete"),
 ]

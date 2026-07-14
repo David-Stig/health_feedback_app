@@ -4,7 +4,7 @@ from .models import Feedback
 
 
 class FeedbackForm(forms.ModelForm):
-    honeypot = forms.CharField(required=False, widget=forms.HiddenInput)
+    medicine = forms.CharField(required=False, widget=forms.HiddenInput)
     difficulty = forms.MultipleChoiceField(
         choices=Feedback.Difficulty.choices,
         widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check"}),
@@ -98,11 +98,11 @@ class FeedbackForm(forms.ModelForm):
         self.fields["reason_not_received"].required = False
         self.fields["reason_not_received_other"].required = False
 
-    def clean_honeypot(self):
-        value = self.cleaned_data.get("honeypot")
+    def clean_medicine(self):
+        value = self.cleaned_data.get("medicine")
         if value:
             raise forms.ValidationError("Spam detected.")
-        return value
+        return value 
 
     def clean_difficulty(self):
         # Ensure difficulty is stored as a list

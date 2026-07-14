@@ -21,6 +21,7 @@
                     <th>Dashboard Access</th>
                     <th>Staff</th>
                     <th>Facility</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -31,9 +32,17 @@
                         <td>{% if user.dashboard_profile.is_dashboard_user %}Yes{% else %}No{% endif %}</td>
                         <td>{% if user.is_staff %}Yes{% else %}No{% endif %}</td>
                         <td>{{ user.dashboard_profile.facility.name|default:"-" }}</td>
+                        <td>
+                            <div class="action-row">
+                                <a class="button-secondary" href="{% url 'dashboard:user_password_reset' user.pk %}">Reset password</a>
+                                {% if not user.is_staff %}
+                                    <a class="button-danger" href="{% url 'dashboard:user_delete' user.pk %}">Delete user</a>
+                                {% endif %}
+                            </div>
+                        </td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="5">No users available.</td></tr>
+                    <tr><td colspan="6">No users available.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
