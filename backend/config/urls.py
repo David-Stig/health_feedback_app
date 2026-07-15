@@ -20,8 +20,8 @@ urlpatterns = [
 
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
 
-    path('f/<int:facility_id>/', feedback_views.submit_feedback, name='feedback_short_submit'),
-    path('feedback/<int:facility_id>/', feedback_views.submit_feedback, name='feedback_direct_submit'),
+    path('f/<int:facility_id>/', feedback_views.submit_feedback_legacy, name='feedback_short_submit'),
+    path('feedback/<int:facility_id>/', feedback_views.submit_feedback_legacy, name='feedback_direct_submit'),
     path('feedback/', include('feedback.urls')),
     path('dashboard/', include('dashboard.urls')),
     path('facilities/', include('facilities.urls')),

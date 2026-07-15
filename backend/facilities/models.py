@@ -20,6 +20,12 @@ class Facility(models.Model):
     def __str__(self) -> str:
         return f"{self.name} ({self.district})"
 
+    def get_feedback_slug(self) -> str:
+        base_slug = slugify(self.name) or "facility"
+        if not self.pk:
+            return base_slug
+        return f"{base_slug}-{self.pk}"
+
     def _normalized_site_url(self) -> str:
         raw_site_url = (getattr(settings, "SITE_URL", "") or "").strip()
         if not raw_site_url:
@@ -43,7 +49,7 @@ class Facility(models.Model):
 
     def get_feedback_url(self) -> str:
         base_url = self._normalized_site_url()
-        return f"{base_url}{reverse('feedback:facility_submit', kwargs={'facility_id': self.pk})}"
+        return f"{base_url}{reverse('feedback:facility_submit', kwargs={'facility_slug': self.get_feedback_slug(), 'facility_id': self.pk})}"
 
     def build_qr_image(self):
         import qrcode

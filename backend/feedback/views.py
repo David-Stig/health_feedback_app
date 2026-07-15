@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.db import transaction
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from facilities.models import Facility
 from .forms import FeedbackForm
@@ -51,7 +51,7 @@ def _resolve_facility_id(request, facility_id=None):
     return session_facility_id
 
 
-def submit_feedback(request, facility_id=None):
+def submit_feedback(request, facility_slug=None, facility_id=None):
     categories = Feedback.Category.choices
 
     facility_id = _resolve_facility_id(request, facility_id=facility_id)
@@ -103,6 +103,15 @@ def submit_feedback(request, facility_id=None):
         "selected_facility": _get_selected_facility(form),
     }
     return render(request, "feedback/form.html", context)
+
+
+def submit_feedback_legacy(request, facility_id):
+    facility = get_object_or_404(Facility, pk=facility_id)
+    return redirect(
+        "feedback:facility_submit",
+        facility_slug=facility.get_feedback_slug(),
+        facility_id=facility.pk,
+    )
 
 
 def thank_you(request):

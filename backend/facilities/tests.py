@@ -24,7 +24,7 @@ class FacilityModelTests(TestCase):
 
         self.assertEqual(
             facility.get_feedback_url(),
-            f"https://feedback.example.com/feedback/facility/{facility.pk}/",
+            f"https://feedback.example.com/feedback/facility/chawama-clinic-{facility.pk}/",
         )
 
 
@@ -43,7 +43,7 @@ class SecureFacilityModelTests(TestCase):
 
         self.assertEqual(
             facility.get_feedback_url(),
-            f"https://feedback.example.com/feedback/facility/{facility.pk}/",
+            f"https://feedback.example.com/feedback/facility/mtendere-clinic-{facility.pk}/",
         )
 
 
@@ -62,7 +62,7 @@ class PortAwareFacilityModelTests(TestCase):
 
         self.assertEqual(
             facility.get_feedback_url(),
-            f"http://feedback.example.com:8000/feedback/facility/{facility.pk}/",
+            f"http://feedback.example.com:8000/feedback/facility/port-clinic-{facility.pk}/",
         )
 
 

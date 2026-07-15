@@ -22,7 +22,7 @@
     <div class="detail-grid">
         <article class="info-card">
             <h2>Feedback link</h2>
-            <p><a href="{% url 'feedback:facility_submit' facility.pk %}" target="_blank" rel="noopener">Open feedback form</a></p>
+            <p><a href="{% url 'feedback:facility_submit' facility_slug=facility.get_feedback_slug facility_id=facility.pk %}" target="_blank" rel="noopener">Open feedback form</a></p>
             <p class="subtle">{{ facility.get_feedback_url }}</p>
         </article>
         <article class="info-card">
