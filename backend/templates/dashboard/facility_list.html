@@ -21,6 +21,23 @@
         </div>
     </div>
 
+    <form method="get" class="filter-grid">
+        <label>
+            Search facilities
+            <input
+                type="text"
+                name="search"
+                value="{{ search_query }}"
+                class="form-control"
+                placeholder="Search by name, district, or province"
+            >
+        </label>
+        <div class="action-row">
+            <button type="submit" class="button-primary">Search</button>
+            <a class="button-secondary" href="{% url 'dashboard:facility_list' %}">Reset</a>
+        </div>
+    </form>
+
     <div class="table-wrap">
         <table class="data-table">
             <thead>
@@ -53,5 +70,22 @@
             </tbody>
         </table>
     </div>
+
+    {% if is_paginated %}
+        <div class="action-row pagination-row">
+            <div class="subtle">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ paginator.count }} facilities
+            </div>
+            <div class="action-row">
+                {% if page_obj.has_previous %}
+                    <a class="button-secondary" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                {% endif %}
+                <span class="pagination-status">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a class="button-secondary" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
 </section>
 {% endblock %}

@@ -1,0 +1,76 @@
+{% extends "admin_base.html" %}
+
+{% block title %}My Account{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div>
+        <p class="eyebrow">Account</p>
+        <h1>Manage your account</h1>
+        <p class="subtle">Update your profile details, contact information, and password.</p>
+    </div>
+
+    <div class="table-grid">
+        <section class="panel stack">
+            <div>
+                <h2>Profile details</h2>
+                <p class="subtle">Review your current username, names, and contact details before updating them.</p>
+            </div>
+            <form method="post" class="stack">
+                {% csrf_token %}
+                <input type="hidden" name="account_action" value="profile">
+                {% for field in profile_form %}
+                    <label class="form-field">
+                        <span>{{ field.label }}</span>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <small class="field-help">{{ field.help_text|safe }}</small>
+                        {% endif %}
+                        {% if field.errors %}
+                            <div class="field-errors">
+                                {{ field.errors }}
+                            </div>
+                        {% endif %}
+                    </label>
+                {% endfor %}
+                <div class="action-row">
+                    <button type="submit" class="button-primary">Update profile</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel stack">
+            <div>
+                <h2>Change password</h2>
+                <p class="subtle">Use a strong password that you do not reuse elsewhere.</p>
+            </div>
+            <form method="post" class="stack">
+                {% csrf_token %}
+                <input type="hidden" name="account_action" value="password">
+                {% if password_form.non_field_errors %}
+                    <div class="message error">
+                        {{ password_form.non_field_errors }}
+                    </div>
+                {% endif %}
+                {% for field in password_form %}
+                    <label class="form-field">
+                        <span>{{ field.label }}</span>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <small class="field-help">{{ field.help_text|safe }}</small>
+                        {% endif %}
+                        {% if field.errors %}
+                            <div class="field-errors">
+                                {{ field.errors }}
+                            </div>
+                        {% endif %}
+                    </label>
+                {% endfor %}
+                <div class="action-row">
+                    <button type="submit" class="button-primary">Change password</button>
+                </div>
+            </form>
+        </section>
+    </div>
+</section>
+{% endblock %}

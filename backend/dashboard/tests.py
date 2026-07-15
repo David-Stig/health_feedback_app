@@ -191,6 +191,41 @@ class FacilityManagementTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("district", form.errors)
 
+    def test_facility_list_paginates_to_ten_entries(self):
+        for index in range(12):
+            Facility.objects.create(
+                name=f"Facility {index}",
+                district="Lusaka",
+                province="Lusaka",
+            )
+        self.client.login(username="staff", password="secret123")
+
+        response = self.client.get(reverse("dashboard:facility_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["is_paginated"])
+        self.assertEqual(response.context["paginator"].per_page, 10)
+        self.assertEqual(len(response.context["facilities"]), 10)
+
+    def test_facility_list_search_filters_by_name_district_or_province(self):
+        Facility.objects.create(
+            name="Kanyama Level One Hospital",
+            district="Lusaka",
+            province="Lusaka",
+        )
+        Facility.objects.create(
+            name="Mansa General Hospital",
+            district="Mansa",
+            province="Luapula",
+        )
+        self.client.login(username="staff", password="secret123")
+
+        response = self.client.get(reverse("dashboard:facility_list"), {"search": "Luapula"})
+
+        self.assertEqual(response.status_code, 200)
+        returned_names = {facility.name for facility in response.context["facilities"]}
+        self.assertEqual(returned_names, {"Mansa General Hospital"})
+
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
 class DashboardUserManagementTests(TestCase):
@@ -200,10 +235,83 @@ class DashboardUserManagementTests(TestCase):
             password="secret123",
             is_staff=True,
         )
+        self.facility = Facility.objects.create(
+            name="Kabwata General Hospital",
+            district="Lusaka",
+            province="Lusaka",
+        )
         self.dashboard_user = User.objects.create_user(
             username="field-user",
             password="oldpassword123",
         )
+
+    def test_staff_user_can_open_edit_user_view(self):
+        self.client.login(username="staff-admin", password="secret123")
+
+        response = self.client.get(reverse("dashboard:user_update", args=[self.dashboard_user.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["target_user"], self.dashboard_user)
+        self.assertContains(response, "Reset password")
+        self.assertContains(response, "Delete user")
+
+    def test_user_list_paginates_to_ten_entries(self):
+        for index in range(12):
+            User.objects.create_user(
+                username=f"user-{index}",
+                password="secret123",
+            )
+        self.client.login(username="staff-admin", password="secret123")
+
+        response = self.client.get(reverse("dashboard:user_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["is_paginated"])
+        self.assertEqual(response.context["paginator"].per_page, 10)
+        self.assertEqual(len(response.context["users"]), 10)
+
+    def test_user_list_search_filters_by_username_name_or_email(self):
+        self.dashboard_user.first_name = "Kabwata"
+        self.dashboard_user.last_name = "Officer"
+        self.dashboard_user.email = "kabwata@example.com"
+        self.dashboard_user.save()
+        User.objects.create_user(
+            username="another-user",
+            email="another@example.com",
+            password="secret123",
+        )
+        self.client.login(username="staff-admin", password="secret123")
+
+        response = self.client.get(reverse("dashboard:user_list"), {"search": "kabwata"})
+
+        self.assertEqual(response.status_code, 200)
+        returned_usernames = {user.username for user in response.context["users"]}
+        self.assertEqual(returned_usernames, {"field-user"})
+
+    def test_staff_user_can_update_user_details_from_edit_view(self):
+        self.client.login(username="staff-admin", password="secret123")
+
+        response = self.client.post(
+            reverse("dashboard:user_update", args=[self.dashboard_user.pk]),
+            data={
+                "username": "field-user-edited",
+                "first_name": "Kabwata",
+                "last_name": "Officer",
+                "email": "kabwata@example.com",
+                "is_dashboard_user": "on",
+                "facility": str(self.facility.pk),
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard:user_list"))
+        self.dashboard_user.refresh_from_db()
+        profile = DashboardUserProfile.objects.get(user=self.dashboard_user)
+        self.assertEqual(self.dashboard_user.username, "field-user-edited")
+        self.assertEqual(self.dashboard_user.first_name, "Kabwata")
+        self.assertEqual(self.dashboard_user.last_name, "Officer")
+        self.assertEqual(self.dashboard_user.email, "kabwata@example.com")
+        self.assertTrue(profile.is_dashboard_user)
+        self.assertEqual(profile.facility, self.facility)
 
     def test_staff_user_can_reset_dashboard_user_password(self):
         self.client.login(username="staff-admin", password="secret123")
@@ -248,3 +356,41 @@ class DashboardUserManagementTests(TestCase):
 
         self.assertRedirects(response, reverse("dashboard:user_list"))
         self.assertTrue(User.objects.filter(pk=self.staff_user.pk).exists())
+
+    def test_dashboard_user_can_update_own_profile_and_contact_information(self):
+        self.client.login(username="field-user", password="oldpassword123")
+
+        response = self.client.post(
+            reverse("dashboard:account"),
+            data={
+                "account_action": "profile",
+                "username": "field-user-updated",
+                "first_name": "Field",
+                "last_name": "Officer",
+                "email": "field.officer@example.com",
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard:account"))
+        self.dashboard_user.refresh_from_db()
+        self.assertEqual(self.dashboard_user.username, "field-user-updated")
+        self.assertEqual(self.dashboard_user.first_name, "Field")
+        self.assertEqual(self.dashboard_user.last_name, "Officer")
+        self.assertEqual(self.dashboard_user.email, "field.officer@example.com")
+
+    def test_dashboard_user_can_change_own_password(self):
+        self.client.login(username="field-user", password="oldpassword123")
+
+        response = self.client.post(
+            reverse("dashboard:account"),
+            data={
+                "account_action": "password",
+                "old_password": "oldpassword123",
+                "new_password1": "newstrongpass789",
+                "new_password2": "newstrongpass789",
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard:account"))
+        self.dashboard_user.refresh_from_db()
+        self.assertTrue(self.dashboard_user.check_password("newstrongpass789"))

@@ -124,3 +124,4 @@ class FacilityQrBulkRegenerationTests(TestCase):
 
         pdf_bytes = b"".join(response.streaming_content)
         self.assertTrue(pdf_bytes.startswith(b"%PDF"))
+        self.assertIn(self.facility_a.get_feedback_url().encode("utf-8"), pdf_bytes)

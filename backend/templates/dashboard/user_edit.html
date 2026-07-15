@@ -1,0 +1,51 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Edit User{% endblock %}
+
+{% block content %}
+<section class="panel form-panel stack-lg">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">User Management</p>
+            <h1>Edit user</h1>
+            <p class="subtle">Update the current details for <strong>{{ target_user.username }}</strong> and manage account actions from here.</p>
+        </div>
+        <div class="action-row">
+            <a class="button-secondary" href="{% url 'dashboard:user_password_reset' target_user.pk %}">Reset password</a>
+            {% if not target_user.is_staff %}
+                <a class="button-danger" href="{% url 'dashboard:user_delete' target_user.pk %}">Delete user</a>
+            {% endif %}
+            <a class="button-secondary" href="{% url 'dashboard:user_list' %}">Back to users</a>
+        </div>
+    </div>
+
+    <form method="post" class="stack">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+            <div class="message error">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        {% for field in form %}
+            <label class="form-field">
+                <span>{{ field.label }}</span>
+                {{ field }}
+                {% if field.help_text %}
+                    <small class="field-help">{{ field.help_text|safe }}</small>
+                {% endif %}
+                {% if field.errors %}
+                    <div class="field-errors">
+                        {{ field.errors }}
+                    </div>
+                {% endif %}
+            </label>
+        {% endfor %}
+
+        <div class="action-row">
+            <button type="submit" class="button-primary">Save changes</button>
+            <a class="button-secondary" href="{% url 'dashboard:user_list' %}">Cancel</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -6,6 +6,7 @@ app_name = "dashboard"
 
 urlpatterns = [
     path("", views.DashboardHomeView.as_view(), name="home"),
+    path("account/", views.DashboardAccountView.as_view(), name="account"),
     path("feedback/", views.FeedbackListView.as_view(), name="feedback_list"),
     path("feedback/<int:pk>/", views.FeedbackDetailView.as_view(), name="feedback_detail"),
     path("feedback/export/csv/", views.export_feedback_csv, name="export_csv"),
@@ -18,6 +19,7 @@ urlpatterns = [
     path("facilities/<int:pk>/", views.FacilityDetailView.as_view(), name="facility_detail"),
     path("users/", views.DashboardUserListView.as_view(), name="user_list"),
     path("users/create/", views.DashboardUserCreateView.as_view(), name="user_create"),
+    path("users/<int:pk>/edit/", views.DashboardUserUpdateView.as_view(), name="user_update"),
     path("users/<int:pk>/reset-password/", views.DashboardUserPasswordResetView.as_view(), name="user_password_reset"),
     path("users/<int:pk>/delete/", views.DashboardUserDeleteView.as_view(), name="user_delete"),
 ]

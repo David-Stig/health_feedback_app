@@ -12,6 +12,23 @@
         <a class="button-primary" href="{% url 'dashboard:user_create' %}">Create user</a>
     </div>
 
+    <form method="get" class="filter-grid">
+        <label>
+            Search users
+            <input
+                type="text"
+                name="search"
+                value="{{ search_query }}"
+                class="form-control"
+                placeholder="Search by username, name, or email"
+            >
+        </label>
+        <div class="action-row">
+            <button type="submit" class="button-primary">Search</button>
+            <a class="button-secondary" href="{% url 'dashboard:user_list' %}">Reset</a>
+        </div>
+    </form>
+
     <div class="table-wrap">
         <table class="data-table">
             <thead>
@@ -33,12 +50,7 @@
                         <td>{% if user.is_staff %}Yes{% else %}No{% endif %}</td>
                         <td>{{ user.dashboard_profile.facility.name|default:"-" }}</td>
                         <td>
-                            <div class="action-row">
-                                <a class="button-secondary" href="{% url 'dashboard:user_password_reset' user.pk %}">Reset password</a>
-                                {% if not user.is_staff %}
-                                    <a class="button-danger" href="{% url 'dashboard:user_delete' user.pk %}">Delete user</a>
-                                {% endif %}
-                            </div>
+                            <a class="button-secondary" href="{% url 'dashboard:user_update' user.pk %}">Edit user</a>
                         </td>
                     </tr>
                 {% empty %}
@@ -47,5 +59,22 @@
             </tbody>
         </table>
     </div>
+
+    {% if is_paginated %}
+        <div class="action-row pagination-row">
+            <div class="subtle">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ paginator.count }} users
+            </div>
+            <div class="action-row">
+                {% if page_obj.has_previous %}
+                    <a class="button-secondary" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                {% endif %}
+                <span class="pagination-status">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a class="button-secondary" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
 </section>
 {% endblock %}

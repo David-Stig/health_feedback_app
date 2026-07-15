@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import SetPasswordForm, UserCreationForm
+from django.contrib.auth.forms import PasswordChangeForm, SetPasswordForm, UserCreationForm
 
 from facilities.models import Facility
 from feedback.models import Feedback
@@ -41,6 +41,8 @@ class FeedbackFilterForm(forms.Form):
 
 
 class DashboardUserCreationForm(UserCreationForm):
+    first_name = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
+    last_name = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
     email = forms.EmailField(required=False, widget=forms.EmailInput(attrs={"class": "form-control"}))
     is_dashboard_user = forms.BooleanField(required=False, initial=True)
     facility = forms.ModelChoiceField(
@@ -51,7 +53,16 @@ class DashboardUserCreationForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("username", "email", "password1", "password2", "is_dashboard_user", "facility")
+        fields = (
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "password1",
+            "password2",
+            "is_dashboard_user",
+            "facility",
+        )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -61,7 +72,42 @@ class DashboardUserCreationForm(UserCreationForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
+        user.first_name = self.cleaned_data.get("first_name", "")
+        user.last_name = self.cleaned_data.get("last_name", "")
         user.email = self.cleaned_data.get("email", "")
+        if commit:
+            user.save()
+            profile = get_or_create_dashboard_profile(user)
+            profile.is_dashboard_user = self.cleaned_data["is_dashboard_user"]
+            profile.facility = self.cleaned_data.get("facility")
+            profile.save()
+        return user
+
+
+class DashboardUserUpdateForm(forms.ModelForm):
+    first_name = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
+    last_name = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
+    email = forms.EmailField(required=False, widget=forms.EmailInput(attrs={"class": "form-control"}))
+    is_dashboard_user = forms.BooleanField(required=False)
+    facility = forms.ModelChoiceField(
+        queryset=Facility.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    class Meta:
+        model = User
+        fields = ("username", "first_name", "last_name", "email", "is_dashboard_user", "facility")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["username"].widget.attrs.update({"class": "form-control"})
+        profile = get_or_create_dashboard_profile(self.instance)
+        self.fields["is_dashboard_user"].initial = profile.is_dashboard_user
+        self.fields["facility"].initial = profile.facility
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
         if commit:
             user.save()
             profile = get_or_create_dashboard_profile(user)
@@ -74,5 +120,27 @@ class DashboardUserCreationForm(UserCreationForm):
 class DashboardUserPasswordResetForm(SetPasswordForm):
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, *args, **kwargs)
+        self.fields["new_password1"].widget.attrs.update({"class": "form-control"})
+        self.fields["new_password2"].widget.attrs.update({"class": "form-control"})
+
+
+class DashboardAccountForm(forms.ModelForm):
+    username = forms.CharField(widget=forms.TextInput(attrs={"class": "form-control"}))
+    email = forms.EmailField(required=False, widget=forms.EmailInput(attrs={"class": "form-control"}))
+
+    class Meta:
+        model = User
+        fields = ("username", "first_name", "last_name", "email")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["first_name"].widget.attrs.update({"class": "form-control"})
+        self.fields["last_name"].widget.attrs.update({"class": "form-control"})
+
+
+class DashboardPasswordChangeForm(PasswordChangeForm):
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(user, *args, **kwargs)
+        self.fields["old_password"].widget.attrs.update({"class": "form-control"})
         self.fields["new_password1"].widget.attrs.update({"class": "form-control"})
         self.fields["new_password2"].widget.attrs.update({"class": "form-control"})

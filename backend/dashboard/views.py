@@ -4,9 +4,10 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.views import redirect_to_login
 from django.db import transaction
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -18,7 +19,14 @@ from facilities.forms import BulkFacilityUploadForm, FacilityForm, ZAMBIA_PROVIN
 from facilities.models import Facility
 from feedback.models import Feedback
 
-from .forms import DashboardUserCreationForm, DashboardUserPasswordResetForm, FeedbackFilterForm
+from .forms import (
+    DashboardAccountForm,
+    DashboardPasswordChangeForm,
+    DashboardUserCreationForm,
+    DashboardUserUpdateForm,
+    DashboardUserPasswordResetForm,
+    FeedbackFilterForm,
+)
 from .mixins import DashboardAccessMixin, StaffRequiredMixin
 from .models import get_or_create_dashboard_profile
 
@@ -254,6 +262,45 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
         return context
 
 
+class DashboardAccountView(DashboardAccessMixin, TemplateView):
+    template_name = "dashboard/account.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.setdefault("profile_form", DashboardAccountForm(instance=self.request.user))
+        context.setdefault("password_form", DashboardPasswordChangeForm(self.request.user))
+        return context
+
+    def post(self, request, *args, **kwargs):
+        action = request.POST.get("account_action")
+
+        if action == "profile":
+            profile_form = DashboardAccountForm(request.POST, instance=request.user)
+            password_form = DashboardPasswordChangeForm(request.user)
+            if profile_form.is_valid():
+                profile_form.save()
+                messages.success(request, "Profile details updated successfully.")
+                return redirect("dashboard:account")
+        elif action == "password":
+            profile_form = DashboardAccountForm(instance=request.user)
+            password_form = DashboardPasswordChangeForm(request.user, request.POST)
+            if password_form.is_valid():
+                user = password_form.save()
+                update_session_auth_hash(request, user)
+                messages.success(request, "Password changed successfully.")
+                return redirect("dashboard:account")
+        else:
+            profile_form = DashboardAccountForm(instance=request.user)
+            password_form = DashboardPasswordChangeForm(request.user)
+            messages.error(request, "Unable to process that account update.")
+
+        context = self.get_context_data(
+            profile_form=profile_form,
+            password_form=password_form,
+        )
+        return self.render_to_response(context)
+
+
 class FeedbackListView(DashboardAccessMixin, ListView):
     template_name = "dashboard/feedback_list.html"
     model = Feedback
@@ -359,17 +406,35 @@ class FeedbackDetailView(DashboardAccessMixin, DetailView):
 class FacilityListView(DashboardAccessMixin, ListView):
     template_name = "dashboard/facility_list.html"
     model = Facility
+    paginate_by = 10
     context_object_name = "facilities"
 
     def get_queryset(self):
         queryset = Facility.objects.all()
-        if self.request.user.is_staff:
-            return queryset
+        if not self.request.user.is_staff:
+            profile = get_or_create_dashboard_profile(self.request.user)
+            if profile.is_dashboard_user and profile.facility_id:
+                queryset = queryset.filter(pk=profile.facility_id)
+            else:
+                return queryset.none()
 
-        profile = get_or_create_dashboard_profile(self.request.user)
-        if profile.is_dashboard_user and profile.facility_id:
-            return queryset.filter(pk=profile.facility_id)
-        return queryset.none()
+        self.search_query = (self.request.GET.get("search") or "").strip()
+        if self.search_query:
+            queryset = queryset.filter(
+                Q(name__icontains=self.search_query)
+                | Q(district__icontains=self.search_query)
+                | Q(province__icontains=self.search_query)
+            )
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["search_query"] = getattr(self, "search_query", "")
+        query_params = self.request.GET.copy()
+        query_params.pop("page", None)
+        context["current_filters"] = query_params.urlencode()
+        return context
 
 
 class FacilityCreateView(StaffRequiredMixin, CreateView):
@@ -543,12 +608,30 @@ class DashboardUserListView(StaffRequiredMixin, ListView):
     template_name = "dashboard/user_list.html"
     context_object_name = "users"
     model = User
+    paginate_by = 10
 
     def get_queryset(self):
-        users = list(User.objects.order_by("username"))
+        self.search_query = (self.request.GET.get("search") or "").strip()
+        queryset = User.objects.order_by("username")
+        if self.search_query:
+            queryset = queryset.filter(
+                Q(username__icontains=self.search_query)
+                | Q(email__icontains=self.search_query)
+                | Q(first_name__icontains=self.search_query)
+                | Q(last_name__icontains=self.search_query)
+            )
+        users = list(queryset)
         for user in users:
             get_or_create_dashboard_profile(user)
         return users
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["search_query"] = getattr(self, "search_query", "")
+        query_params = self.request.GET.copy()
+        query_params.pop("page", None)
+        context["current_filters"] = query_params.urlencode()
+        return context
 
 
 class DashboardUserCreateView(StaffRequiredMixin, FormView):
@@ -559,6 +642,18 @@ class DashboardUserCreateView(StaffRequiredMixin, FormView):
     def form_valid(self, form):
         form.save()
         messages.success(self.request, "User created successfully.")
+        return super().form_valid(form)
+
+
+class DashboardUserUpdateView(StaffRequiredMixin, UpdateView):
+    template_name = "dashboard/user_edit.html"
+    model = User
+    form_class = DashboardUserUpdateForm
+    context_object_name = "target_user"
+    success_url = reverse_lazy("dashboard:user_list")
+
+    def form_valid(self, form):
+        messages.success(self.request, "User updated successfully.")
         return super().form_valid(form)
 
 

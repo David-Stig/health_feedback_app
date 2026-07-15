@@ -16,10 +16,11 @@ QR_SIZE = 70 * mm
 
 def build_feedback_poster_pdf(facility) -> BytesIO:
     buffer = BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
+    pdf = canvas.Canvas(buffer, pagesize=A4, pageCompression=0)
     pdf.setTitle(f"{facility.name} Feedback Poster")
 
     qr_reader = _build_qr_reader(facility)
+    feedback_url = facility.get_feedback_url()
 
     top_margin = PAGE_HEIGHT - (24 * mm)
     content_width = PAGE_WIDTH - (36 * mm)
@@ -92,6 +93,18 @@ def build_feedback_poster_pdf(facility) -> BytesIO:
         font_size=11,
         color=BLACK,
     )
+    y_position -= 3 * mm
+
+    y_position = _draw_wrapped_text(
+        pdf,
+        feedback_url,
+        y_position,
+        max_width=content_width,
+        font_name="Helvetica",
+        font_size=9,
+        color=BLACK,
+        leading=13,
+    )
 
     footer_y = 18 * mm
     pdf.setStrokeColor(BLACK)
@@ -161,4 +174,25 @@ def _wrap_text(text, font_name, font_size, max_width):
             lines.append(current_line)
             current_line = word
     lines.append(current_line)
-    return lines
+    return _split_long_tokens(lines, font_name, font_size, max_width)
+
+
+def _split_long_tokens(lines, font_name, font_size, max_width):
+    wrapped_lines = []
+    for line in lines:
+        if stringWidth(line, font_name, font_size) <= max_width:
+            wrapped_lines.append(line)
+            continue
+
+        current = ""
+        for char in line:
+            candidate = f"{current}{char}"
+            if current and stringWidth(candidate, font_name, font_size) > max_width:
+                wrapped_lines.append(current)
+                current = char
+            else:
+                current = candidate
+        if current:
+            wrapped_lines.append(current)
+
+    return wrapped_lines
