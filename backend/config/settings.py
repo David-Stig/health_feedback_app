@@ -30,15 +30,12 @@ DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = env_list(
     "DJANGO_ALLOWED_HOSTS",
-    "127.0.0.1,localhost,"
-    "feedbackcrhe.com",
-    "www.feedbackcrhe.com",
+    "127.0.0.1,localhost,feedbackcrhe.com,www.feedbackcrhe.com",
 )
 
 CSRF_TRUSTED_ORIGINS = env_list(
     "DJANGO_CSRF_TRUSTED_ORIGINS",
-    "https://feedbackcrhe.com",
-    "https://www.feedbackcrhe.com",
+    "https://feedbackcrhe.com,https://www.feedbackcrhe.com",
 )
 
 SITE_URL = os.getenv("SITE_URL", "https://feedbackcrhe.com")
