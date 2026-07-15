@@ -4,6 +4,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 APPEND_SLASH = True
 
+TURNSTILE_SITE_KEY = os.getenv("TURNSTILE_SITE_KEY", "0x4AAAAAAD2gzouej22Ftj2R")
+TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "0x4AAAAAAD2gzn8Q8ui93CsTJ9ctmaIKbCc")
 
 def load_env_file(env_path: Path) -> None:
     if not env_path.exists():
