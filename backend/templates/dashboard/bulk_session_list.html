@@ -17,34 +17,36 @@
         <button type="submit" class="button-secondary">Search</button>
     </form>
 
-    <div class="table-wrap">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Code</th>
-                    <th>Facility</th>
-                    <th>Name</th>
-                    <th>Status</th>
-                    <th>Responses</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for session in sessions %}
+    {% if sessions %}
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
                     <tr>
-                        <td><strong>{{ session.session_code }}</strong></td>
-                        <td>{{ session.facility.name }}</td>
-                        <td>{{ session.campaign_name }}</td>
-                        <td><span class="status-badge">{{ session.get_status_display }}</span></td>
-                        <td>{{ session.response_total }}</td>
-                        <td><a class="button-secondary" href="{% url 'dashboard:bulk_session_detail' session.pk %}">Open</a></td>
+                        <th>Code</th>
+                        <th>Facility</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Responses</th>
+                        <th>Actions</th>
                     </tr>
-                {% empty %}
-                    <tr><td colspan="6">No collection sessions found.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody>
+                    {% for session in sessions %}
+                        <tr>
+                            <td><strong>{{ session.session_code }}</strong></td>
+                            <td>{{ session.facility.name }}</td>
+                            <td>{{ session.campaign_name }}</td>
+                            <td><span class="status-badge">{{ session.get_status_display }}</span></td>
+                            <td>{{ session.response_total }}</td>
+                            <td><a class="button-secondary" href="{% url 'dashboard:bulk_session_detail' session.pk %}">Open</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="subtle">No collection sessions found.</p>
+    {% endif %}
 
     {% if is_paginated %}
         <div class="pagination">
