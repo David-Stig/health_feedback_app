@@ -4,9 +4,6 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 APPEND_SLASH = True
 
-TURNSTILE_SITE_KEY = os.getenv("TURNSTILE_SITE_KEY", "0x4AAAAAAD2gzouej22Ftj2R")
-TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "0x4AAAAAAD2gzn8Q8ui93CsTJ9ctmaIKbCc")
-
 def load_env_file(env_path: Path) -> None:
     if not env_path.exists():
         return
@@ -42,6 +39,14 @@ CSRF_TRUSTED_ORIGINS = env_list(
 
 SITE_URL = os.getenv("SITE_URL", "https://feedbackcrhe.com")
 SITE_PORT = os.getenv("SITE_PORT", "").strip()
+
+TURNSTILE_SITE_KEY = os.getenv("TURNSTILE_SITE_KEY", "").strip()
+TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "").strip()
+TURNSTILE_VERIFY_URL = os.getenv(
+    "TURNSTILE_VERIFY_URL",
+    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+).strip()
+TURNSTILE_ENABLED = bool(TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY)
 
 SECURE_SSL_REDIRECT = os.getenv("DJANGO_SECURE_SSL_REDIRECT", "False").lower() == "true"
 SESSION_COOKIE_SECURE = os.getenv("DJANGO_SESSION_COOKIE_SECURE", "False").lower() == "true"

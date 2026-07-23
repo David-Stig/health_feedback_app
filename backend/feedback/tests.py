@@ -1,4 +1,5 @@
 import tempfile
+from unittest.mock import patch
 
 from django.core.cache import cache
 from django.test import TestCase, override_settings
@@ -16,6 +17,9 @@ TEST_MEDIA_ROOT = tempfile.mkdtemp()
     RATE_LIMIT_SUBMISSIONS=1,
     RATE_LIMIT_WINDOW_SECONDS=60,
     STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage",
+    TURNSTILE_ENABLED=False,
+    TURNSTILE_SITE_KEY="",
+    TURNSTILE_SECRET_KEY="",
 )
 class FeedbackSubmissionTests(TestCase):
     def setUp(self):
@@ -150,3 +154,23 @@ class FeedbackSubmissionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["selected_facility"], self.facility)
+
+    @override_settings(TURNSTILE_ENABLED=True, TURNSTILE_SITE_KEY="site-key", TURNSTILE_SECRET_KEY="secret-key")
+    def test_submission_requires_turnstile_when_enabled(self):
+        response = self.client.post(self.facility_url, data=self._valid_payload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Please complete the security check.")
+        self.assertEqual(Feedback.objects.count(), 0)
+
+    @override_settings(TURNSTILE_ENABLED=True, TURNSTILE_SITE_KEY="site-key", TURNSTILE_SECRET_KEY="secret-key")
+    @patch("feedback.views.verify_turnstile", return_value=(True, None))
+    def test_submission_succeeds_when_turnstile_verification_passes(self, mocked_verify_turnstile):
+        payload = self._valid_payload()
+        payload["cf-turnstile-response"] = "token-value"
+
+        response = self.client.post(self.facility_url, data=payload)
+
+        self.assertRedirects(response, reverse("feedback:thank_you"))
+        self.assertEqual(Feedback.objects.count(), 2)
+        mocked_verify_turnstile.assert_called_once()

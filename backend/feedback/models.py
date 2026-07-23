@@ -1,10 +1,210 @@
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import JSONField
+from django.utils import timezone
 from facilities.models import Facility
 
 
+class SequenceCounter(models.Model):
+    """Database-backed counter for human-readable bulk workflow codes."""
+
+    scope = models.CharField(max_length=32)
+    year = models.PositiveIntegerField()
+    last_value = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("scope", "year")
+
+    def __str__(self) -> str:
+        return f"{self.scope}-{self.year}: {self.last_value}"
+
+
+def next_sequence_code(scope: str, prefix: str) -> str:
+    current_year = timezone.localdate().year
+    with transaction.atomic():
+        counter, _created = SequenceCounter.objects.select_for_update().get_or_create(
+            scope=scope,
+            year=current_year,
+            defaults={"last_value": 0},
+        )
+        counter.last_value += 1
+        counter.save(update_fields=["last_value"])
+    return f"{prefix}-{current_year}-{counter.last_value:05d}"
+
+
+class CollectionSession(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        ACTIVE = "active", "Active"
+        PAUSED = "paused", "Paused"
+        COMPLETED = "completed", "Completed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    session_code = models.CharField(max_length=20, unique=True, editable=False, db_index=True)
+    facility = models.ForeignKey(
+        Facility,
+        on_delete=models.CASCADE,
+        related_name="collection_sessions",
+    )
+    campaign_name = models.CharField(max_length=255)
+    programme_name = models.CharField(max_length=255, blank=True)
+    collection_method = models.CharField(max_length=120, blank=True)
+    collected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="collection_sessions",
+    )
+    start_date = models.DateField(default=timezone.localdate)
+    end_date = models.DateField(null=True, blank=True)
+    location = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        permissions = [
+            ("complete_collectionsession", "Can complete collection session"),
+            ("capture_assisted_feedback", "Can capture assisted feedback"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.session_code} - {self.facility.name}"
+
+    @property
+    def response_count(self) -> int:
+        return self.feedback_entries.filter(is_active=True).count()
+
+    def accepts_responses(self) -> bool:
+        return self.status == self.Status.ACTIVE
+
+    def save(self, *args, **kwargs):
+        if not self.session_code:
+            self.session_code = next_sequence_code("collection_session", "CS")
+        super().save(*args, **kwargs)
+
+
+class ImportBatch(models.Model):
+    class Status(models.TextChoices):
+        UPLOADED = "uploaded", "Uploaded"
+        VALIDATING = "validating", "Validating"
+        VALIDATION_FAILED = "validation_failed", "Validation failed"
+        READY = "ready", "Ready"
+        IMPORTING = "importing", "Importing"
+        COMPLETED = "completed", "Completed"
+        PARTIALLY_COMPLETED = "partially_completed", "Partially completed"
+        ROLLED_BACK = "rolled_back", "Rolled back"
+        FAILED = "failed", "Failed"
+
+    batch_code = models.CharField(max_length=20, unique=True, editable=False, db_index=True)
+    original_filename = models.CharField(max_length=255)
+    stored_file = models.FileField(upload_to="bulk_imports/")
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="import_batches",
+    )
+    facility = models.ForeignKey(
+        Facility,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="import_batches",
+    )
+    collection_session = models.ForeignKey(
+        CollectionSession,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="import_batches",
+    )
+    total_rows = models.PositiveIntegerField(default=0)
+    valid_rows = models.PositiveIntegerField(default=0)
+    invalid_rows = models.PositiveIntegerField(default=0)
+    imported_rows = models.PositiveIntegerField(default=0)
+    duplicate_rows = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=24,
+        choices=Status.choices,
+        default=Status.UPLOADED,
+        db_index=True,
+    )
+    validation_summary = JSONField(default=dict, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    rolled_back_at = models.DateTimeField(null=True, blank=True)
+    rolled_back_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rolled_back_import_batches",
+    )
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+        permissions = [
+            ("validate_importbatch", "Can validate import batch"),
+            ("confirm_importbatch", "Can confirm import batch"),
+            ("rollback_importbatch", "Can roll back import batch"),
+            ("download_import_errors", "Can download import errors"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.batch_code} - {self.original_filename}"
+
+    def save(self, *args, **kwargs):
+        if not self.batch_code:
+            self.batch_code = next_sequence_code("import_batch", "IB")
+        super().save(*args, **kwargs)
+
+
+class BulkActionAuditLog(models.Model):
+    event_type = models.CharField(max_length=64, db_index=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bulk_action_logs",
+    )
+    collection_session = models.ForeignKey(
+        CollectionSession,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_logs",
+    )
+    import_batch = models.ForeignKey(
+        ImportBatch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="audit_logs",
+    )
+    details = JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.event_type} @ {self.created_at:%Y-%m-%d %H:%M}"
+
+
 class Feedback(models.Model):
+    class SubmissionSource(models.TextChoices):
+        QR_PUBLIC = "qr_public", "Public QR Submission"
+        ASSISTED_CAPTURE = "assisted_capture", "Assisted Capture"
+        SPREADSHEET_IMPORT = "spreadsheet_import", "Spreadsheet Import"
+
     class Category(models.TextChoices):
         WAITING_TIME = "Waiting time before being seen", "Waiting time before being seen"
         STAFF_ATTITUDE = "Respect and dignity from staff", "Respect and dignity from staff"
@@ -154,6 +354,37 @@ class Feedback(models.Model):
       
 
     facility = models.ForeignKey(Facility, on_delete=models.CASCADE, related_name="feedback_entries")
+    submission_source = models.CharField(
+        max_length=32,
+        choices=SubmissionSource.choices,
+        default=SubmissionSource.QR_PUBLIC,
+        db_index=True,
+    )
+    collection_session = models.ForeignKey(
+        CollectionSession,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="feedback_entries",
+    )
+    import_batch = models.ForeignKey(
+        ImportBatch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="feedback_entries",
+    )
+    captured_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="captured_feedback_entries",
+    )
+    submitted_on = models.DateField(null=True, blank=True, db_index=True)
+    fingerprint = models.CharField(max_length=64, blank=True, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    rolled_back_at = models.DateTimeField(null=True, blank=True)
     rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     category = models.CharField(max_length=64, choices=Category.choices)
     comment = models.TextField(blank=True)
@@ -192,3 +423,8 @@ class Feedback(models.Model):
 
     def __str__(self) -> str:
         return f"{self.facility.name} - {self.category} ({self.rating})"
+
+    def save(self, *args, **kwargs):
+        if not self.submitted_on:
+            self.submitted_on = timezone.localdate()
+        super().save(*args, **kwargs)

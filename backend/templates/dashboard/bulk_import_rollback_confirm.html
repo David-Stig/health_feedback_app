@@ -1,0 +1,28 @@
+{% extends "admin_base.html" %}
+{% block title %}Rollback {{ batch.batch_code }}{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div class="section-intro">
+        <p class="eyebrow">Rollback</p>
+        <h1>Rollback import batch</h1>
+        <p>You are about to roll back <strong>{{ batch.batch_code }}</strong>. Only feedback created by this batch will be deactivated.</p>
+    </div>
+    <div class="metric-grid">
+        <article class="metric-card">
+            <span>Records affected</span>
+            <strong>{{ affected_count }}</strong>
+        </article>
+        <article class="metric-card">
+            <span>Current status</span>
+            <strong>{{ batch.get_status_display }}</strong>
+        </article>
+    </div>
+
+    <form method="post" class="button-row">
+        {% csrf_token %}
+        <button type="submit" class="button-primary">Confirm rollback</button>
+        <a class="button-secondary" href="{% url 'dashboard:bulk_import_detail' batch.pk %}">Cancel</a>
+    </form>
+</section>
+{% endblock %}

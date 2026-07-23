@@ -1,0 +1,61 @@
+{% extends "admin_base.html" %}
+{% block title %}Collection Sessions{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Bulk Submissions</p>
+            <h1>Collection sessions</h1>
+            <p class="subtle">Manage assisted feedback capture sessions for outreach teams and facility visits.</p>
+        </div>
+        <a class="button-primary" href="{% url 'dashboard:bulk_session_create' %}">Create session</a>
+    </div>
+
+    <form method="get" class="inline-form">
+        <input type="search" name="search" value="{{ search_query }}" class="form-control" placeholder="Search code, facility, or name">
+        <button type="submit" class="button-secondary">Search</button>
+    </form>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Facility</th>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Responses</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in sessions %}
+                    <tr>
+                        <td><strong>{{ session.session_code }}</strong></td>
+                        <td>{{ session.facility.name }}</td>
+                        <td>{{ session.campaign_name }}</td>
+                        <td><span class="status-badge">{{ session.get_status_display }}</span></td>
+                        <td>{{ session.response_total }}</td>
+                        <td><a class="button-secondary" href="{% url 'dashboard:bulk_session_detail' session.pk %}">Open</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">No collection sessions found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+                <a class="button-secondary" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">Previous</a>
+            {% endif %}
+            <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a class="button-secondary" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">Next</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

@@ -21,6 +21,18 @@
             <span>Average rating</span>
             <strong>{{ average_rating }}</strong>
         </div>
+        <div class="stat-card">
+            <span>Public QR</span>
+            <strong>{{ public_qr_total }}</strong>
+        </div>
+        <div class="stat-card">
+            <span>Assisted</span>
+            <strong>{{ assisted_total }}</strong>
+        </div>
+        <div class="stat-card">
+            <span>Active sessions</span>
+            <strong>{{ active_session_total }}</strong>
+        </div>
     </div>
 </section>
 
@@ -55,6 +67,10 @@
 </section>
 
 <section class="chart-grid">
+    <article class="panel">
+        <h2>Submission sources</h2>
+        <canvas id="sourceChart"></canvas>
+    </article>
     <article class="panel">
         <h2>Insurance used</h2>
         <canvas id="insuranceChart"></canvas>
@@ -112,6 +128,8 @@
 {{ trend_ratings|json_script:"trend-ratings" }}
 {{ category_labels|json_script:"category-labels" }}
 {{ category_totals|json_script:"category-totals" }}
+{{ source_labels|json_script:"source-labels" }}
+{{ source_totals|json_script:"source-totals" }}
 {{ received_service_labels|json_script:"received-service-labels" }}
 {{ received_service_totals|json_script:"received-service-totals" }}
 {{ payment_labels|json_script:"payment-labels" }}
@@ -130,6 +148,8 @@
     const trendRatings = JSON.parse(document.getElementById("trend-ratings").textContent);
     const categoryLabels = JSON.parse(document.getElementById("category-labels").textContent);
     const categoryTotals = JSON.parse(document.getElementById("category-totals").textContent);
+    const sourceLabels = JSON.parse(document.getElementById("source-labels").textContent);
+    const sourceTotals = JSON.parse(document.getElementById("source-totals").textContent);
     const receivedServiceLabels = JSON.parse(document.getElementById("received-service-labels").textContent);
     const receivedServiceTotals = JSON.parse(document.getElementById("received-service-totals").textContent);
     const paymentLabels = JSON.parse(document.getElementById("payment-labels").textContent);
@@ -181,6 +201,14 @@
         data: {
             labels: paymentLabels,
             datasets: [{ data: paymentTotals, backgroundColor: palette }]
+        }
+    });
+
+    new Chart(document.getElementById("sourceChart"), {
+        type: "doughnut",
+        data: {
+            labels: sourceLabels,
+            datasets: [{ data: sourceTotals, backgroundColor: palette }]
         }
     });
 

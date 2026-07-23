@@ -17,6 +17,8 @@ class FeedbackFilterForm(forms.Form):
     category = forms.ChoiceField(required=False) 
     gender = forms.ChoiceField(required=False)
     rating = forms.ChoiceField(required=False)
+    submission_source = forms.ChoiceField(required=False)
+    collection_session = forms.ModelChoiceField(queryset=Feedback.collection_session.field.related_model.objects.all(), required=False)
     date_from = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
     date_to = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
     search = forms.CharField(required=False)
@@ -31,6 +33,13 @@ class FeedbackFilterForm(forms.Form):
         self.fields["category"].choices = [("", "All categories")] + list(Feedback.Category.choices)
         self.fields["gender"].choices = [("", "All genders")] + list(Feedback.Gender.choices)
         self.fields["rating"].choices = [("", "All ratings")] + [(str(i), str(i)) for i in range(1, 6)]
+        submission_source_choices = [
+            choice
+            for choice in Feedback.SubmissionSource.choices
+            if choice[0] != Feedback.SubmissionSource.SPREADSHEET_IMPORT
+        ]
+        self.fields["submission_source"].choices = [("", "All submission sources")] + submission_source_choices
+        self.fields["collection_session"].queryset = Feedback.collection_session.field.related_model.objects.order_by("-created_at")
 
         for field in self.fields.values():
             css_class = "form-control"

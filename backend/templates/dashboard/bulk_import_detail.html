@@ -1,0 +1,86 @@
+{% extends "admin_base.html" %}
+{% block title %}{{ batch.batch_code }}{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div class="card-header">
+        <div>
+            <p class="eyebrow">Validation Preview</p>
+            <h1>{{ batch.batch_code }}</h1>
+            <p>{{ batch.original_filename }}</p>
+        </div>
+        <span class="status-badge">{{ batch.get_status_display }}</span>
+    </div>
+
+    <div class="metric-grid">
+        <article class="metric-card"><span>Uploaded by</span><strong>{{ batch.uploaded_by.username }}</strong></article>
+        <article class="metric-card"><span>Uploaded</span><strong>{{ batch.uploaded_at|date:"d/m/Y H:i" }}</strong></article>
+        <article class="metric-card"><span>Total rows</span><strong>{{ batch.total_rows }}</strong></article>
+        <article class="metric-card"><span>Valid rows</span><strong>{{ batch.valid_rows }}</strong></article>
+        <article class="metric-card"><span>Invalid rows</span><strong>{{ batch.invalid_rows }}</strong></article>
+        <article class="metric-card"><span>Duplicates</span><strong>{{ batch.duplicate_rows }}</strong></article>
+        <article class="metric-card"><span>Imported rows</span><strong>{{ batch.imported_rows }}</strong></article>
+        <article class="metric-card"><span>Facility</span><strong>{{ batch.facility.name|default:"From sheet" }}</strong></article>
+    </div>
+
+    <div class="button-row">
+        {% if batch.status == "ready" %}
+            <form method="post" action="{% url 'dashboard:bulk_import_confirm' batch.pk %}">{% csrf_token %}<button class="button-primary" type="submit">Confirm import</button></form>
+        {% endif %}
+        <a class="button-secondary" href="{% url 'dashboard:bulk_import_errors' batch.pk %}">Download error report</a>
+        {% if batch.status == "completed" or batch.status == "partially_completed" %}
+            <a class="button-secondary" href="{% url 'dashboard:bulk_import_rollback' batch.pk %}">Rollback batch</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="panel">
+    <h2>Validation preview</h2>
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Row</th>
+                    <th>Status</th>
+                    <th>Facility</th>
+                    <th>Submitted on</th>
+                    <th>Errors</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in row_results %}
+                    <tr>
+                        <td>{{ row.source_row_number }}</td>
+                        <td><span class="status-badge">{{ row.status|cut:"_" }}</span></td>
+                        <td>{{ row.normalized_row.facility_code|default:"-" }}</td>
+                        <td>{{ row.submitted_on|default:"-" }}</td>
+                        <td>
+                            {% if row.errors %}
+                                {% for error in row.errors %}
+                                    <span class="error-chip">{{ error.field_name }}: {{ error.error_message }}</span>
+                                {% endfor %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">No preview rows available.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+                <a class="button-secondary" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+            {% endif %}
+            <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a class="button-secondary" href="?page={{ page_obj.next_page_number }}">Next</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

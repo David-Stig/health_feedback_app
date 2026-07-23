@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.conf import settings
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -6,6 +7,8 @@ from facilities.models import Facility
 from .forms import FeedbackForm
 from .models import Feedback
 from .rate_limit import check_submission_rate
+from .submission_service import create_feedback_entries_from_cleaned_data
+from .turnstile import verify_turnstile
 
 FEEDBACK_FACILITY_SESSION_KEY = "feedback_facility_id"
 
@@ -19,15 +22,6 @@ def _get_selected_facility(form):
         return form.fields["facility"].queryset.get(pk=initial_facility)
     except Facility.DoesNotExist:
         return None
-
-
-def _build_feedback_base_data(cleaned_data):
-    excluded_fields = {"facility", "comment", "medicine"}
-    return {
-        field_name: value
-        for field_name, value in cleaned_data.items()
-        if field_name not in excluded_fields
-    }
 
 
 def _resolve_facility_id(request, facility_id=None):
@@ -63,33 +57,34 @@ def submit_feedback(request, facility_slug=None, facility_id=None):
         form = FeedbackForm(post_data, facility_id=facility_id)
 
         if form.is_valid():
-            if not check_submission_rate(request):
+            turnstile_passed, turnstile_error = verify_turnstile(request)
+            if not turnstile_passed:
+                form.add_error(None, turnstile_error)
+            elif not check_submission_rate(request):
                 form.add_error(None, "Too many submissions from this connection. Please try again later.")
             else:
                 facility = form.cleaned_data["facility"]
-                feedback_base_data = _build_feedback_base_data(form.cleaned_data)
-                pending_entries = []
+                ratings = {}
+                comments = {}
 
                 for category_value, _category_label in categories:
                     rating_value = request.POST.get(f"rating_{category_value}")
                     comment_value = request.POST.get(f"comment_{category_value}")
 
                     if rating_value:
-                        pending_entries.append(
-                            Feedback(
-                                facility=facility,
-                                category=category_value,
-                                rating=int(rating_value),
-                                comment=comment_value or "",
-                                **feedback_base_data,
-                            )
-                        )
+                        ratings[category_value] = rating_value
+                        comments[category_value] = comment_value or ""
 
-                if not pending_entries:
+                if not ratings:
                     form.add_error(None, "Please rate at least one category.")
                 else:
-                    with transaction.atomic():
-                        Feedback.objects.bulk_create(pending_entries)
+                    create_feedback_entries_from_cleaned_data(
+                        facility=facility,
+                        cleaned_data=form.cleaned_data,
+                        ratings=ratings,
+                        comments=comments,
+                        submission_source=Feedback.SubmissionSource.QR_PUBLIC,
+                    )
 
                     request.session[FEEDBACK_FACILITY_SESSION_KEY] = str(facility.pk)
                     messages.success(request, "Thank you. Your feedback has been submitted.")
@@ -101,6 +96,8 @@ def submit_feedback(request, facility_slug=None, facility_id=None):
         "form": form,
         "categories": categories,
         "selected_facility": _get_selected_facility(form),
+        "turnstile_enabled": settings.TURNSTILE_ENABLED,
+        "turnstile_site_key": settings.TURNSTILE_SITE_KEY,
     }
     return render(request, "feedback/form.html", context)
 

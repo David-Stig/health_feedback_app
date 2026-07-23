@@ -1,0 +1,67 @@
+{% extends "admin_base.html" %}
+{% block title %}{{ session.session_code }}{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div class="card-header">
+        <div>
+            <p class="eyebrow">Assisted Capture</p>
+            <h1>{{ session.session_code }}</h1>
+            <p>{{ session.facility.name }} | {{ session.campaign_name }}</p>
+        </div>
+        <span class="status-badge">{{ session.get_status_display }}</span>
+    </div>
+
+    <dl class="detail-grid">
+        <div><dt>Enumerator</dt><dd>{{ session.collected_by.get_full_name|default:session.collected_by.username }}</dd></div>
+        <div><dt>Session name</dt><dd>{{ session.campaign_name }}</dd></div>
+        <div><dt>Responses captured</dt><dd>{{ responses|length }}</dd></div>
+        <div><dt>Notes</dt><dd>{{ session.notes|default:"-" }}</dd></div>
+    </dl>
+
+    <div class="button-row">
+        <a class="button-secondary" href="{% url 'dashboard:bulk_session_list' %}">Back to sessions</a>
+        <a class="button-danger" href="{% url 'dashboard:bulk_session_delete' session.pk %}">Delete session</a>
+        {% if session.status == "draft" %}
+            <form method="post" action="{% url 'dashboard:bulk_session_status' session.pk 'start' %}">{% csrf_token %}<button class="button-primary" type="submit">Start session</button></form>
+        {% elif session.status == "active" %}
+            <a class="button-primary" href="{% url 'dashboard:bulk_session_capture' session.pk %}">Capture responses</a>
+            <form method="post" action="{% url 'dashboard:bulk_session_status' session.pk 'pause' %}">{% csrf_token %}<button class="button-secondary" type="submit">Pause</button></form>
+            <form method="post" action="{% url 'dashboard:bulk_session_status' session.pk 'complete' %}">{% csrf_token %}<button class="button-secondary" type="submit">Complete</button></form>
+        {% elif session.status == "paused" %}
+            <form method="post" action="{% url 'dashboard:bulk_session_status' session.pk 'resume' %}">{% csrf_token %}<button class="button-primary" type="submit">Resume</button></form>
+            <form method="post" action="{% url 'dashboard:bulk_session_status' session.pk 'cancel' %}">{% csrf_token %}<button class="button-secondary" type="submit">Cancel</button></form>
+        {% endif %}
+    </div>
+</section>
+
+<section class="panel">
+    <h2>Recent responses</h2>
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Submitted</th>
+                    <th>Category</th>
+                    <th>Rating</th>
+                    <th>Captured by</th>
+                    <th>Comment</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in responses %}
+                    <tr>
+                        <td>{{ entry.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>{{ entry.get_category_display }}</td>
+                        <td>{{ entry.rating }}</td>
+                        <td>{{ entry.captured_by.username|default:"-" }}</td>
+                        <td>{{ entry.comment|default:"-" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">No responses captured yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

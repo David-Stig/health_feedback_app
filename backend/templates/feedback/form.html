@@ -76,11 +76,11 @@
                 {{ form.service_other }}
                 {{ form.service_other.errors }}
             </label>
-            <label>
-                Do you have any difficulty with any of the following? (Select all that apply)
+            <div class="form-field multi-option-field">
+                <span class="field-label">Do you have any difficulty with any of the following? (Select all that apply)</span>
                 {{ form.difficulty }}
                 {{ form.difficulty.errors }}
-            </label>
+            </div>
             </div>
         </fieldset>  
         
@@ -260,6 +260,16 @@
                 {{ form.aob_other.errors }}
             </label>
         </fieldset>
+
+        {% if turnstile_enabled %}
+            <div class="turnstile-wrapper">
+                <div
+                    class="cf-turnstile"
+                    data-sitekey="{{ turnstile_site_key }}"
+                    data-theme="light"
+                ></div>
+            </div>
+        {% endif %}
         
         <button type="submit" class="button-primary button-full">Submit feedback</button>
         <p class="privacy-note">No personally identifiable information is collected.</p>
@@ -389,6 +399,13 @@
     margin-top: 1rem;
 }
 
+.turnstile-wrapper {
+    display: flex;
+    justify-content: center;
+    margin: 1rem 0 0.75rem;
+    overflow-x: auto;
+}
+
 @media (max-width: 768px) {
     .category-rating-row {
         grid-template-columns: 1fr;
@@ -409,26 +426,45 @@
 }
 
 /* Checkbox styles for multi-select fields */
+.multi-option-field {
+    gap: 0.75rem;
+}
+
+.field-label {
+    display: block;
+    font-weight: 500;
+    color: #102a43;
+}
+
 .form-check {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.form-check > div {
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+}
+
+.form-check > div label {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    align-items: start;
+    column-gap: 0.75rem;
+    width: 100%;
+    margin: 0;
+    cursor: pointer;
+    font-weight: 400;
+    line-height: 1.45;
+    color: #1f2937;
 }
 
 .form-check input[type="checkbox"] {
-    margin-right: 0.5rem;
+    margin: 0;
+    margin-top: 0.15rem;
     cursor: pointer;
     width: 18px;
     height: 18px;
     accent-color: #2563eb;
-}
-
-.form-check label {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    margin-bottom: 0;
-    font-weight: 400;
 }
 
 .form-check input[type="checkbox"]:disabled {
@@ -436,7 +472,7 @@
     cursor: not-allowed;
 }
 
-.form-check input[type="checkbox"]:disabled + label {
+.form-check input[type="checkbox"]:disabled + * {
     opacity: 0.5;
     cursor: not-allowed;
     color: #9ca3af;
@@ -661,5 +697,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize on page load
     updateConditionalRequired();
 });
+
+    
 </script>
+{% if turnstile_enabled %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endif %}
 {% endblock %}

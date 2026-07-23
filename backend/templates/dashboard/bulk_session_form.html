@@ -1,0 +1,20 @@
+{% extends "admin_base.html" %}
+{% block title %}Create Collection Session{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div class="section-intro">
+        <p class="eyebrow">Bulk Submissions</p>
+        <h1>Create collection session</h1>
+        <p>Set up the outreach context once, then capture many individual responses against the same facility.</p>
+    </div>
+    <form method="post" class="stacked-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="button-row">
+            <button type="submit" class="button-primary">Save session</button>
+            <a class="button-secondary" href="{% url 'dashboard:bulk_session_list' %}">Cancel</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

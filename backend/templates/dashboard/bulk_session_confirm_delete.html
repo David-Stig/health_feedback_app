@@ -1,0 +1,25 @@
+{% extends "admin_base.html" %}
+{% block title %}Delete Session{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div class="section-intro">
+        <p class="eyebrow">Collection Sessions</p>
+        <h1>Delete session</h1>
+        <p class="subtle">This will remove the session record for <strong>{{ session.session_code }}</strong>. Existing feedback entries will remain saved, but they will no longer be linked to this session.</p>
+    </div>
+
+    <div class="detail-grid">
+        <div><dt>Session code</dt><dd>{{ session.session_code }}</dd></div>
+        <div><dt>Facility</dt><dd>{{ session.facility.name }}</dd></div>
+        <div><dt>Name</dt><dd>{{ session.campaign_name }}</dd></div>
+        <div><dt>Responses captured</dt><dd>{{ session.response_count }}</dd></div>
+    </div>
+
+    <form method="post" class="button-row">
+        {% csrf_token %}
+        <button type="submit" class="button-danger">Delete session</button>
+        <a class="button-secondary" href="{% url 'dashboard:bulk_session_detail' session.pk %}">Cancel</a>
+    </form>
+</section>
+{% endblock %}

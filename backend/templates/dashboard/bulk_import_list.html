@@ -1,0 +1,47 @@
+{% extends "admin_base.html" %}
+{% block title %}Spreadsheet Imports{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Bulk Submissions</p>
+            <h1>Spreadsheet imports</h1>
+            <p class="subtle">Validate uploaded batches first, confirm imports deliberately, and keep rollback available when needed.</p>
+        </div>
+        <div class="button-row">
+            <a class="button-secondary" href="{% url 'dashboard:bulk_import_template' %}">Download template</a>
+            <a class="button-primary" href="{% url 'dashboard:bulk_import_upload' %}">Upload file</a>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Batch</th>
+                    <th>File</th>
+                    <th>Status</th>
+                    <th>Valid</th>
+                    <th>Imported</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for batch in batches %}
+                    <tr>
+                        <td><strong>{{ batch.batch_code }}</strong></td>
+                        <td>{{ batch.original_filename }}</td>
+                        <td><span class="status-badge">{{ batch.get_status_display }}</span></td>
+                        <td>{{ batch.valid_rows }}</td>
+                        <td>{{ batch.imported_rows }}</td>
+                        <td><a class="button-secondary" href="{% url 'dashboard:bulk_import_detail' batch.pk %}">Open</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6">No import batches found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,370 @@
+{% extends "admin_base.html" %}
+{% block title %}Assisted Capture{% endblock %}
+
+{% block content %}
+<section class="panel stack-lg">
+    <div class="section-intro">
+        <p class="eyebrow">Assisted Capture</p>
+        <h1>Capture responses for {{ session.session_code }}</h1>
+        <p>Each saved entry becomes a normal feedback submission linked to this session and facility.</p>
+    </div>
+    <div class="detail-grid">
+        <div><strong>Session Code</strong><br>{{ session.session_code }}</div>
+        <div><strong>Facility</strong><br>{{ session.facility.name }}</div>
+        <div><strong>Session name</strong><br>{{ session.campaign_name }}</div>
+        <div><strong>Enumerator</strong><br>{{ session.collected_by.get_full_name|default:session.collected_by.username }}</div>
+        <div><strong>Collection Date</strong><br>{{ session.start_date|date:"d/m/Y" }}</div>
+        <div><strong>Status</strong><br>{{ session.get_status_display }}</div>
+        <div><strong>Responses Captured</strong><br>{{ response_count }}</div>
+    </div>
+</section>
+
+<section class="panel assisted-capture-grid">
+    <form method="post" class="stacked-form">
+        {% csrf_token %}
+        {{ form.medicine }}
+        <input type="hidden" name="facility" value="{{ session.facility.pk }}">
+        {% if form.non_field_errors %}
+            <div class="message error">{{ form.non_field_errors }}</div>
+        {% endif %}
+        {% if form.facility.errors %}
+            <div class="message error">{{ form.facility.errors }}</div>
+        {% endif %}
+        <fieldset class="service-ratings-fieldset">
+            <legend>SECTION A: RESPONDENT & VISIT DETAILS</legend>
+            <div class="grid-two">
+                <label>
+                    Gender (optional)
+                    {{ form.gender }}
+                    {{ form.gender.errors }}
+                </label>
+                <label>
+                    Age group (optional)
+                    {{ form.age_group }}
+                    {{ form.age_group.errors }}
+                </label>
+            </div>
+            <label>
+                How far do you live from this health facility ?
+                {{ form.distance }}
+                {{ form.distance.errors }}
+            </label>
+            <label>
+                What was the MAIN service you came for TODAY?
+                {{ form.service }}
+                {{ form.service.errors }}
+            </label>
+            <label id="service_other_label" style="display: none;">
+                Please specify the service:
+                {{ form.service_other }}
+                {{ form.service_other.errors }}
+            </label>
+            <div class="form-field multi-option-field">
+                <span class="field-label">Do you have any difficulty with any of the following? (Select all that apply)</span>
+                {{ form.difficulty }}
+                {{ form.difficulty.errors }}
+            </div>
+        </fieldset>
+
+        <fieldset class="service-ratings-fieldset">
+            <legend>SECTION B: SERVICE COVERAGE - TODAY'S EXPERIENCE</legend>
+            <label>
+                Did you receive ALL the services you needed during this visit?
+                {{ form.received_service }}
+                {{ form.received_service.errors }}
+            </label>
+            <label id="if_partially_or_no_label" style="display: none;">
+                What was the MAIN reason?
+                {{ form.reason_not_received }}
+                {{ form.reason_not_received.errors }}
+            </label>
+            <label id="reason_not_received_other_label" style="display: none;">
+                Please specify the reason:
+                {{ form.reason_not_received_other }}
+                {{ form.reason_not_received_other.errors }}
+            </label>
+            <div class="grid-two">
+                <label>
+                    Were you referred to another facility today?
+                    {{ form.referral }}
+                    {{ form.referral.errors }}
+                </label>
+                <label id="facility_type_label" style="display: none;">
+                    What facility were you referred to?
+                    {{ form.facility_type }}
+                    {{ form.facility_type.errors }}
+                </label>
+            </div>
+            <label id="facility_type_other_label" style="display: none;">
+                Please specify the facility type:
+                {{ form.facility_type_other }}
+                {{ form.facility_type_other.errors }}
+            </label>
+        </fieldset>
+
+        <fieldset class="service-ratings-fieldset">
+            <legend>SECTION C: FINANCIAL PROTECTION - COST OF TODAY'S VISIT</legend>
+            <label>
+                UHC means people don't suffer financial hardship from health costs
+            </label>
+            <div class="grid-two">
+                <label>
+                    Did you pay ANY money ( Out of pocket) for services, medicines, or tests during THIS visit?
+                    {{ form.payment }}
+                    {{ form.payment.errors }}
+                </label>
+                <label>
+                    What type of health insurance did you use for TODAY'S visit?
+                    {{ form.insurance }}
+                    {{ form.insurance.errors }}
+                </label>
+            </div>
+            <label id="no_insurance_reason_label" style="display: none;">
+                What is the MAIN reason you did not use insurance today?
+                {{ form.no_insurance_reason }}
+                {{ form.no_insurance_reason.errors }}
+            </label>
+            <label id="no_insurance_reason_other_label" style="display: none;">
+                Please specify the reason:
+                {{ form.no_insurance_reason_other }}
+                {{ form.no_insurance_reason_other.errors }}
+            </label>
+            <div class="grid-two">
+                <label id="cash_payment_label" style="display: none;">
+                    What was the total amount you paid out-of-pocket today?
+                    {{ form.cash_payment }}
+                    {{ form.cash_payment.errors }}
+                </label>
+                <label>
+                    Did the cost make it difficult for you to get all the care or medicines you needed today?
+                    {{ form.cost }}
+                    {{ form.cost.errors }}
+                </label>
+            </div>
+            <label id="cash_payment_other_label" style="display: none;">
+                Please specify the amount:
+                {{ form.cash_payment_other }}
+                {{ form.cash_payment_other.errors }}
+            </label>
+        </fieldset>
+
+        <fieldset class="service-ratings-fieldset">
+            <legend>SECTION D: QUALITY & RESPECT AT THIS HEALTH POST</legend>
+            <label>
+                UHC is about effective, people-centered coverage
+            </label>
+            <div class="grid-two">
+                <label>
+                    Were you able to get all prescribed medicines HERE at the health facility?
+                    {{ form.medicines }}
+                    {{ form.medicines.errors }}
+                </label>
+                <label>
+                    Would you come back to this health post the next time you need care?
+                    {{ form.revisit }}
+                    {{ form.revisit.errors }}
+                </label>
+            </div>
+
+        <fieldset class="service-ratings-fieldset">
+            <legend>Please rate each service area:</legend>
+            <div class="assisted-rating-grid">
+            {% for category_value, category_label in categories %}
+                <div class="assisted-rating-row">
+                    <div class="rating-section">
+                        <div class="category-name">{{ category_label }}</div>
+                        <div class="star-rating">
+                            <input type="radio" id="assisted_{{ forloop.counter }}_5" name="rating_{{ category_value }}" value="5">
+                            <label for="assisted_{{ forloop.counter }}_5" title="5 stars">&#9733;</label>
+
+                            <input type="radio" id="assisted_{{ forloop.counter }}_4" name="rating_{{ category_value }}" value="4">
+                            <label for="assisted_{{ forloop.counter }}_4" title="4 stars">&#9733;</label>
+
+                            <input type="radio" id="assisted_{{ forloop.counter }}_3" name="rating_{{ category_value }}" value="3">
+                            <label for="assisted_{{ forloop.counter }}_3" title="3 stars">&#9733;</label>
+
+                            <input type="radio" id="assisted_{{ forloop.counter }}_2" name="rating_{{ category_value }}" value="2">
+                            <label for="assisted_{{ forloop.counter }}_2" title="2 stars">&#9733;</label>
+
+                            <input type="radio" id="assisted_{{ forloop.counter }}_1" name="rating_{{ category_value }}" value="1">
+                            <label for="assisted_{{ forloop.counter }}_1" title="1 star">&#9733;</label>
+                        </div>
+                    </div>
+                    <div class="comment-section">
+                        <label for="comment_{{ category_value }}" class="comment-label">Comment (optional)</label>
+                        <textarea id="comment_{{ category_value }}" name="comment_{{ category_value }}" class="category-comment" rows="3" placeholder="Write a short comment..."></textarea>
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+        </fieldset>
+        </fieldset>
+
+        <fieldset class="service-ratings-fieldset">
+            <legend>SECTION E: UHC & EQUITY PERCEPTIONS</legend>
+            <label>
+                Do you think everyone in your community has the same chance to get care at this health facility?
+                {{ form.chance }}
+                {{ form.chance.errors }}
+            </label>
+            <label id="reason_not_chance_label" style="display: none;">
+                Who has more difficulty getting care here?
+                {{ form.reason_not_chance }}
+                {{ form.reason_not_chance.errors }}
+            </label>
+            <label id="reason_not_chance_other_label" style="display: none;">
+                Please specify:
+                {{ form.reason_not_chance_other }}
+                {{ form.reason_not_chance_other.errors }}
+            </label>
+            <label>
+                What ONE change would most improve services at THIS health facility?
+                {{ form.change }}
+                {{ form.change.errors }}
+            </label>
+            <label id="change_other_label" style="display: none;">
+                Please specify:
+                {{ form.change_other }}
+                {{ form.change_other.errors }}
+            </label>
+            <label>
+                Is there anything else you would like to tell us about your experience today?
+                {{ form.aob }}
+                {{ form.aob.errors }}
+            </label>
+            <label id="aob_other_label" style="display: none;">
+                Please specify:
+                {{ form.aob_other }}
+                {{ form.aob_other.errors }}
+            </label>
+        </fieldset>
+
+        <div class="button-row">
+            <button type="submit" name="capture_action" value="next" class="button-primary">Save and capture next</button>
+            <button type="submit" name="capture_action" value="end" class="button-secondary">Save and end session</button>
+            <a class="button-secondary" href="{% url 'dashboard:bulk_session_detail' session.pk %}">Cancel</a>
+        </div>
+    </form>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const difficultyCheckboxes = document.querySelectorAll('input[name="difficulty"]');
+    const noDifficultyValue = ' No difficulty';
+
+    function updateDifficultyState() {
+        const noDifficultyCheckbox = Array.from(difficultyCheckboxes).find(
+            (checkbox) => checkbox.value === noDifficultyValue
+        );
+        const isNoDifficultyChecked = noDifficultyCheckbox && noDifficultyCheckbox.checked;
+
+        difficultyCheckboxes.forEach((checkbox) => {
+            if (checkbox.value === noDifficultyValue) {
+                const anyOtherChecked = Array.from(difficultyCheckboxes).some(
+                    (candidate) => candidate !== checkbox && candidate.checked
+                );
+                checkbox.disabled = anyOtherChecked;
+            } else {
+                checkbox.disabled = isNoDifficultyChecked;
+            }
+        });
+    }
+
+    difficultyCheckboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', updateDifficultyState);
+    });
+    updateDifficultyState();
+
+    const conditionalFields = [
+        { selectId: 'id_service', otherValue: 'Other', labelId: 'service_other_label' },
+        { selectId: 'id_reason_not_received', otherValue: 'Other', labelId: 'reason_not_received_other_label' },
+        { selectId: 'id_chance', otherValue: 'No', labelId: 'reason_not_chance_label' },
+        { selectId: 'id_reason_not_chance', otherValue: 'Other', labelId: 'reason_not_chance_other_label' },
+        {
+            selectId: 'id_received_service',
+            otherValue: ['No, I did not receive what I needed', 'Partially, I received some but not all'],
+            labelId: 'if_partially_or_no_label',
+        },
+        { selectId: 'id_payment', otherValue: 'Yes', labelId: 'cash_payment_label' },
+        { selectId: 'id_cash_payment', otherValue: 'other', labelId: 'cash_payment_other_label' },
+        { selectId: 'id_insurance', otherValue: 'None', labelId: 'no_insurance_reason_label' },
+        { selectId: 'id_aob', otherValue: 'Yes', labelId: 'aob_other_label' },
+        { selectId: 'id_change', otherValue: 'Other', labelId: 'change_other_label' },
+        { selectId: 'id_no_insurance_reason', otherValue: 'Other', labelId: 'no_insurance_reason_other_label' },
+        { selectId: 'id_referral', otherValue: 'Yes', labelId: 'facility_type_label' },
+        { selectId: 'id_facility_type', otherValue: 'Other', labelId: 'facility_type_other_label' },
+    ];
+
+    function toggleOtherField(selectElement, labelId) {
+        const label = document.getElementById(labelId);
+        const config = conditionalFields.find((field) => field.selectId === selectElement.id);
+
+        if (!label || !config) {
+            return;
+        }
+
+        const otherValues = Array.isArray(config.otherValue) ? config.otherValue : [config.otherValue];
+        label.style.display = otherValues.includes(selectElement.value) ? 'block' : 'none';
+    }
+
+    const conditionalRequired = [
+        { triggerField: 'id_service', triggerValue: 'Other', requiredField: 'id_service_other' },
+        { triggerField: 'id_reason_not_received', triggerValue: 'Other', requiredField: 'id_reason_not_received_other' },
+        { triggerField: 'id_reason_not_chance', triggerValue: 'Other', requiredField: 'id_reason_not_chance_other' },
+        { triggerField: 'id_aob', triggerValue: 'Yes', requiredField: 'id_aob_other' },
+        { triggerField: 'id_change', triggerValue: 'Other', requiredField: 'id_change_other' },
+        { triggerField: 'id_cash_payment', triggerValue: 'other', requiredField: 'id_cash_payment_other' },
+        { triggerField: 'id_no_insurance_reason', triggerValue: 'Other', requiredField: 'id_no_insurance_reason_other' },
+        { triggerField: 'id_facility_type', triggerValue: 'Other', requiredField: 'id_facility_type_other' },
+        { triggerField: 'id_received_service', triggerValue: 'NOT_YES', requiredField: 'id_reason_not_received', isSpecial: true },
+    ];
+
+    function updateConditionalRequired() {
+        conditionalRequired.forEach((dependency) => {
+            const triggerField = document.getElementById(dependency.triggerField);
+            const requiredField = document.getElementById(dependency.requiredField);
+
+            if (!triggerField || !requiredField) {
+                return;
+            }
+
+            const shouldBeRequired = dependency.isSpecial
+                ? triggerField.value !== 'Yes, I received everything I needed'
+                : triggerField.value === dependency.triggerValue;
+
+            requiredField.required = shouldBeRequired;
+
+            const label = requiredField.closest('label');
+            if (!label) {
+                return;
+            }
+
+            label.classList.toggle('conditional-required', shouldBeRequired);
+        });
+    }
+
+    conditionalFields.forEach((config) => {
+        const selectElement = document.getElementById(config.selectId);
+        if (!selectElement) {
+            return;
+        }
+
+        selectElement.addEventListener('change', function() {
+            toggleOtherField(this, config.labelId);
+            updateConditionalRequired();
+        });
+
+        toggleOtherField(selectElement, config.labelId);
+    });
+
+    conditionalRequired.forEach((dependency) => {
+        const triggerField = document.getElementById(dependency.triggerField);
+        if (triggerField) {
+            triggerField.addEventListener('change', updateConditionalRequired);
+        }
+    });
+
+    updateConditionalRequired();
+});
+</script>
+{% endblock %}

@@ -34,9 +34,12 @@ User = get_user_model()
 
 EXPORT_COLUMNS = [
     ("Date", lambda entry: entry.created_at.strftime("%Y-%m-%d %H:%M")),
+    ("Submitted on", lambda entry: entry.submitted_on.strftime("%Y-%m-%d") if entry.submitted_on else ""),
     ("Facility", lambda entry: entry.facility.name),
     ("District", lambda entry: entry.facility.district),
     ("Province", lambda entry: entry.facility.province),
+    ("Submission source", lambda entry: entry.get_submission_source_display()),
+    ("Collection session", lambda entry: entry.collection_session.session_code if entry.collection_session_id else ""),
     ("Rating", lambda entry: entry.rating),
     ("Category", lambda entry: entry.category),
     ("Comment", lambda entry: entry.comment),
@@ -118,7 +121,7 @@ def display_choice_list(values, choices):
 
 
 def scoped_feedback_queryset(user):
-    queryset = Feedback.objects.select_related("facility").all()
+    queryset = Feedback.objects.select_related("facility", "collection_session", "import_batch", "captured_by").filter(is_active=True)
     if user.is_authenticated and not user.is_staff:
         profile = get_or_create_dashboard_profile(user)
         if profile.is_dashboard_user and profile.facility_id:
@@ -141,6 +144,10 @@ def filtered_feedback_queryset(user, params):
         queryset = queryset.filter(category=params["category"])
     if params.get("rating"):
         queryset = queryset.filter(rating=params["rating"])
+    if params.get("submission_source"):
+        queryset = queryset.filter(submission_source=params["submission_source"])
+    if params.get("collection_session"):
+        queryset = queryset.filter(collection_session=params["collection_session"])
     if params.get("distance"):
         queryset = queryset.filter(distance=params["distance"])
     if params.get("date_from"):
@@ -161,6 +168,11 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
         feedback_qs = scoped_feedback_queryset(self.request.user)
         total_submissions = feedback_qs.count()
         recent_cutoff = timezone.now() - timedelta(days=30)
+        source_breakdown = choice_breakdown(
+            feedback_qs,
+            "submission_source",
+            Feedback.SubmissionSource.choices,
+        )
 
 
         trend_data = (
@@ -229,6 +241,7 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
                 "average_rating": round(feedback_qs.aggregate(avg=Avg("rating"))["avg"] or 0, 2),
                 "gender_breakdown": gender_breakdown,
                 "category_breakdown": category_breakdown,
+                "source_breakdown": source_breakdown,
                 "received_service_breakdown": received_service_breakdown,
                 "payment_breakdown": payment_breakdown,
                 "medicines_breakdown": medicines_breakdown,
@@ -245,6 +258,8 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
                 "gender_totals": [item["total"] for item in gender_breakdown],
                 "category_labels": [item["category"] for item in category_breakdown],
                 "category_totals": [item["total"] for item in category_breakdown],
+                "source_labels": [item["label"] for item in source_breakdown],
+                "source_totals": [item["total"] for item in source_breakdown],
                 "received_service_labels": [item["label"] for item in received_service_breakdown],
                 "received_service_totals": [item["total"] for item in received_service_breakdown],
                 "payment_labels": [item["label"] for item in payment_breakdown],
@@ -257,6 +272,14 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
                 "insurance_totals": [item["total"] for item in insurance_breakdown],
                 "change_labels": [item["label"] for item in change_breakdown],
                 "change_totals": [item["total"] for item in change_breakdown],
+                "public_qr_total": feedback_qs.filter(submission_source=Feedback.SubmissionSource.QR_PUBLIC).count(),
+                "assisted_total": feedback_qs.filter(submission_source=Feedback.SubmissionSource.ASSISTED_CAPTURE).count(),
+                "imported_total": feedback_qs.filter(submission_source=Feedback.SubmissionSource.SPREADSHEET_IMPORT).count(),
+                "active_session_total": Feedback.collection_session.field.related_model.objects.filter(status="active").count(),
+                "completed_import_total": Feedback.import_batch.field.related_model.objects.filter(status__in=["completed", "partially_completed"]).count(),
+                "rejected_import_row_total": sum(
+                    Feedback.import_batch.field.related_model.objects.values_list("invalid_rows", flat=True)
+                ),
             }
         )
         return context
@@ -338,11 +361,14 @@ class FeedbackDetailView(DashboardAccessMixin, DetailView):
                 "Response overview",
                 [
                     ("Submitted", entry.created_at.strftime("%Y-%m-%d %H:%M")),
+                    ("Submitted on", entry.submitted_on.strftime("%d/%m/%Y") if entry.submitted_on else "Not provided"),
                     ("Facility", entry.facility.name),
                     ("District", entry.facility.district),
                     ("Province", entry.facility.province),
                     ("Rating", entry.rating),
                     ("Category", display_choice(entry, "category")),
+                    ("Submission source", entry.get_submission_source_display()),
+                    ("Collection session", entry.collection_session.session_code if entry.collection_session_id else "Not linked"),
                 ],
             ),
             (
