@@ -1,10 +1,12 @@
 import tempfile
 import csv
 from io import StringIO, BytesIO
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from openpyxl import load_workbook
 
 from dashboard.models import DashboardUserProfile
@@ -84,6 +86,28 @@ class DashboardAccessTests(TestCase):
         self.assertEqual(response.context["paginator"].per_page, 10)
         self.assertEqual(len(response.context["feedback_entries"]), 10)
 
+    def test_feedback_list_orders_latest_submissions_first(self):
+        older_submission = self._create_submission(
+            self.facility_a,
+            rating_pairs=[(Feedback.Category.WAITING_TIME, 2, "Older")],
+            gender=Feedback.Gender.FEMALE,
+        )
+        latest_submission = self._create_submission(
+            self.facility_a,
+            rating_pairs=[(Feedback.Category.CLEANLINESS, 5, "Latest")],
+            gender=Feedback.Gender.MALE,
+        )
+        Feedback.objects.filter(pk=older_submission.pk).update(created_at=timezone.now() - timedelta(days=2))
+        Feedback.objects.filter(pk=latest_submission.pk).update(created_at=timezone.now())
+        self.client.login(username="dash", password="secret123")
+
+        response = self.client.get(reverse("dashboard:feedback_list"))
+
+        entries = list(response.context["feedback_entries"])
+        self.assertGreaterEqual(len(entries), 2)
+        self.assertEqual(entries[0].pk, latest_submission.pk)
+        self.assertEqual(entries[-1].pk, older_submission.pk)
+
     def test_dashboard_user_export_is_scoped_to_assigned_facility(self):
         self.client.login(username="dash", password="secret123")
 
@@ -153,7 +177,10 @@ class DashboardAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(rows), 3)
         header = rows[0]
-        latest_row = rows[2]
+        latest_row = next(
+            row for row in rows[1:]
+            if row[header.index("Availability of Medication comment")] == "Medicines available"
+        )
         self.assertIn("Ratings answered", header)
         self.assertIn("Average rating", header)
         self.assertEqual(latest_row[header.index("Ratings answered")], "3")

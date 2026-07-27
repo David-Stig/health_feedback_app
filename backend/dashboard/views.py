@@ -153,6 +153,7 @@ def scoped_feedback_queryset(user):
             average_rating_value=Avg("rating_responses__rating"),
         )
         .filter(is_active=True)
+        .order_by("-created_at", "-pk")
     )
     if user.is_authenticated and not user.is_staff:
         profile = get_or_create_dashboard_profile(user)
@@ -192,7 +193,7 @@ def filtered_feedback_queryset(user, params):
             | Q(rating_responses__comment__icontains=params["search"])
         ).distinct()
 
-    return queryset
+    return queryset.order_by("-created_at", "-pk")
 
 
 class DashboardHomeView(DashboardAccessMixin, TemplateView):
