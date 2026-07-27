@@ -1,13 +1,14 @@
 import csv
 from io import TextIOWrapper
 from datetime import timedelta
+from collections import OrderedDict
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.views import redirect_to_login
 from django.db import transaction
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Case, CharField, Count, Q, Value, When
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -31,6 +32,110 @@ from .mixins import DashboardAccessMixin, StaffRequiredMixin
 from .models import get_or_create_dashboard_profile
 
 User = get_user_model()
+
+DASHBOARD_LABEL_OVERRIDES = {
+    ("insurance", Feedback.INSURANCE.NONE): "No insurance used",
+}
+
+RATING_CATEGORY_DEFINITIONS = [
+    {
+        "key": "waiting_time",
+        "full_label": "Waiting time before being seen",
+        "short_label": "Waiting Time",
+        "source_values": [
+            Feedback.Category.WAITING_TIME,
+            "Waiting Time",
+        ],
+    },
+    {
+        "key": "respect_dignity",
+        "full_label": "Respect and dignity from staff",
+        "short_label": "Respect & Dignity",
+        "source_values": [
+            Feedback.Category.STAFF_ATTITUDE,
+            "Staff Attitude",
+        ],
+    },
+    {
+        "key": "cleanliness",
+        "full_label": "Cleanliness of the health facility",
+        "short_label": "Cleanliness",
+        "source_values": [
+            Feedback.Category.CLEANLINESS,
+            "Cleanliness",
+        ],
+    },
+    {
+        "key": "health_explanation",
+        "full_label": "Explanation of your illness and treatment",
+        "short_label": "Health Explanation",
+        "source_values": [
+            Feedback.Category.EXPLANATION,
+        ],
+    },
+    {
+        "key": "medication",
+        "full_label": "Availability of Medication",
+        "short_label": "Medication",
+        "source_values": [
+            Feedback.Category.MEDICATION,
+        ],
+    },
+]
+
+CHANGE_LABEL_DEFINITIONS = {
+    Feedback.CHANGE.MORE_WORKERS: {
+        "short_label": "Health workers",
+        "full_label": "More health workers available",
+    },
+    Feedback.CHANGE.MORE_MEDICINES: {
+        "short_label": "Medicines",
+        "full_label": "More medicines in stock",
+    },
+    Feedback.CHANGE.WAITING_TIME: {
+        "short_label": "Waiting Time",
+        "full_label": "Shorter waiting time",
+    },
+    Feedback.CHANGE.LOWER_COST: {
+        "short_label": "Lower/No Costs",
+        "full_label": "Lower costs / no fees",
+    },
+    Feedback.CHANGE.STAFF_ATTITUDE: {
+        "short_label": "Staff Attitude",
+        "full_label": "Better staff attitude",
+    },
+    Feedback.CHANGE.OPENING_HOURS: {
+        "short_label": "Operating Hours",
+        "full_label": "Longer opening hours",
+    },
+    Feedback.CHANGE.OTHER: {
+        "short_label": "Other",
+        "full_label": "Other",
+    },
+}
+
+INSURANCE_LABEL_DEFINITIONS = {
+    Feedback.INSURANCE.NHIMA: {
+        "short_label": "NHIMA",
+        "full_label": "NHIMA (National Health Insurance)",
+    },
+    Feedback.INSURANCE.PRIVATE: {
+        "short_label": "Private",
+        "full_label": "Private Insurance",
+    },
+    Feedback.INSURANCE.BOTH: {
+        "short_label": "Both",
+        "full_label": "Both NHIMA and private",
+    },
+    Feedback.INSURANCE.NONE: {
+        "short_label": "None",
+        "full_label": "No insurance used",
+    },
+    Feedback.INSURANCE.NOT_SURE: {
+        "short_label": "Not Sure",
+        "full_label": "Not sure",
+    },
+}
 
 RATING_EXPORT_COLUMNS = [
     (choice_value, choice_label) for choice_value, choice_label in Feedback.Category.choices
@@ -118,6 +223,97 @@ def choice_breakdown(queryset, field_name, choices, *, include_blank=False):
             continue
         label = choice_map.get(raw_value, raw_value or "Not provided")
         items.append({"value": raw_value, "label": label, "total": item["total"]})
+    return items
+
+
+def count_answered_submissions(queryset, field_name):
+    return queryset.exclude(**{f"{field_name}__isnull": True}).exclude(**{field_name: ""}).count()
+
+
+def stable_sorted_breakdown(items, choices):
+    order_map = {value: index for index, (value, _label) in enumerate(choices)}
+    return sorted(
+        items,
+        key=lambda item: (-item["total"], order_map.get(item["value"], len(order_map)), item["label"].lower()),
+    )
+
+
+def build_single_choice_chart_data(queryset, field_name, choices, *, include_blank=False, summary_label="respondents"):
+    answered_total = count_answered_submissions(queryset, field_name)
+    items = choice_breakdown(queryset, field_name, choices, include_blank=include_blank)
+    for item in items:
+        override = DASHBOARD_LABEL_OVERRIDES.get((field_name, item["value"]))
+        if override:
+            item["label"] = override
+        if field_name == "insurance":
+            labels = INSURANCE_LABEL_DEFINITIONS.get(item["value"])
+            if labels:
+                item["short_label"] = labels["short_label"]
+                item["full_label"] = labels["full_label"]
+        item["percentage"] = round((item["total"] / answered_total) * 100, 1) if answered_total else 0
+    items = stable_sorted_breakdown(items, choices)
+    return {
+        "items": items,
+        "answered_total": answered_total,
+        "summary": f"{answered_total} {summary_label}",
+        "note": "",
+        "question_type": "single",
+    }
+
+
+def build_multi_choice_chart_data(queryset, field_name, choices, *, summary_noun="selections"):
+    answered_total = count_answered_submissions(queryset, field_name)
+    items = choice_breakdown(queryset, field_name, choices)
+    selection_total = sum(item["total"] for item in items)
+    for item in items:
+        item["percentage"] = round((item["total"] / answered_total) * 100, 1) if answered_total else 0
+        if field_name == "change":
+            labels = CHANGE_LABEL_DEFINITIONS.get(item["value"])
+            if labels:
+                item["short_label"] = labels["short_label"]
+                item["full_label"] = labels["full_label"]
+    items = stable_sorted_breakdown(items, choices)
+    return {
+        "items": items,
+        "answered_total": answered_total,
+        "selection_total": selection_total,
+        "summary": f"{selection_total} {summary_noun} from {answered_total} submissions" if answered_total else f"0 {summary_noun}",
+        "note": "Multiple selections allowed",
+        "question_type": "multiple",
+    }
+
+
+def build_rating_category_chart_data(rating_queryset):
+    normalization_cases = [
+        When(category__in=definition["source_values"], then=Value(definition["key"]))
+        for definition in RATING_CATEGORY_DEFINITIONS
+    ]
+    aggregated = {
+        row["normalized_category"]: row["total"]
+        for row in (
+            rating_queryset.annotate(
+                normalized_category=Case(
+                    *normalization_cases,
+                    default=Value(None),
+                    output_field=CharField(),
+                )
+            )
+            .exclude(normalized_category__isnull=True)
+            .values("normalized_category")
+            .annotate(total=Count("id"))
+        )
+    }
+
+    items = []
+    for definition in RATING_CATEGORY_DEFINITIONS:
+        items.append(
+            {
+                "key": definition["key"],
+                "full_label": definition["full_label"],
+                "short_label": definition["short_label"],
+                "total": aggregated.get(definition["key"], 0),
+            }
+        )
     return items
 
 
@@ -226,9 +422,7 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
             feedback_qs.values("distance").annotate(total=Count("id", distinct=True)).order_by("-total")
         )
         rating_qs = RatingResponse.objects.filter(submission__in=feedback_qs)
-        category_breakdown = list(
-            rating_qs.values("category").annotate(total=Count("id"), average_rating=Avg("rating")).order_by("-total")
-        )
+        category_breakdown = build_rating_category_chart_data(rating_qs)
         received_service_breakdown = choice_breakdown(
             feedback_qs,
             "received_service",
@@ -249,16 +443,18 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
             "revisit",
             Feedback.REVISIT.choices,
         )
-        insurance_breakdown = choice_breakdown(
+        insurance_chart = build_single_choice_chart_data(
             feedback_qs,
             "insurance",
             Feedback.INSURANCE.choices,
         )
-        change_breakdown = choice_breakdown(
+        change_chart = build_multi_choice_chart_data(
             feedback_qs,
             "change",
             Feedback.CHANGE.choices,
         )
+        insurance_breakdown = insurance_chart["items"]
+        change_breakdown = change_chart["items"]
         reason_not_received_breakdown = choice_breakdown(
             feedback_qs,
             "reason_not_received",
@@ -285,6 +481,19 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
                 "revisit_breakdown": revisit_breakdown,
                 "insurance_breakdown": insurance_breakdown,
                 "change_breakdown": change_breakdown,
+                "insurance_chart_summary": insurance_chart["summary"],
+                "insurance_chart_note": insurance_chart["note"],
+                "insurance_short_labels": [item.get("short_label", item["label"]) for item in insurance_breakdown],
+                "insurance_full_labels": [item.get("full_label", item["label"]) for item in insurance_breakdown],
+                "insurance_percentages": [item["percentage"] for item in insurance_breakdown],
+                "insurance_answered_total": insurance_chart["answered_total"],
+                "change_chart_summary": change_chart["summary"],
+                "change_chart_note": change_chart["note"],
+                "change_short_labels": [item.get("short_label", item["label"]) for item in change_breakdown],
+                "change_full_labels": [item.get("full_label", item["label"]) for item in change_breakdown],
+                "change_percentages": [item["percentage"] for item in change_breakdown],
+                "change_answered_total": change_chart["answered_total"],
+                "change_selection_total": change_chart["selection_total"],
                 "reason_not_received_breakdown": reason_not_received_breakdown,
                 "facility_breakdown": facility_breakdown,
                 "province_breakdown": province_breakdown,
@@ -293,7 +502,8 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
                 "trend_ratings": [round(item["average_rating"] or 0, 2) for item in trend_data],
                 "gender_labels": [item["gender"] for item in gender_breakdown],
                 "gender_totals": [item["total"] for item in gender_breakdown],
-                "category_labels": [dict(Feedback.Category.choices).get(item["category"], item["category"]) for item in category_breakdown],
+                "category_labels": [item["short_label"] for item in category_breakdown],
+                "category_full_labels": [item["full_label"] for item in category_breakdown],
                 "category_totals": [item["total"] for item in category_breakdown],
                 "source_labels": [item["label"] for item in source_breakdown],
                 "source_totals": [item["total"] for item in source_breakdown],
@@ -305,9 +515,9 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
                 "medicines_totals": [item["total"] for item in medicines_breakdown],
                 "revisit_labels": [item["label"] for item in revisit_breakdown],
                 "revisit_totals": [item["total"] for item in revisit_breakdown],
-                "insurance_labels": [item["label"] for item in insurance_breakdown],
+                "insurance_labels": [item.get("short_label", item["label"]) for item in insurance_breakdown],
                 "insurance_totals": [item["total"] for item in insurance_breakdown],
-                "change_labels": [item["label"] for item in change_breakdown],
+                "change_labels": [item.get("short_label", item["label"]) for item in change_breakdown],
                 "change_totals": [item["total"] for item in change_breakdown],
                 "public_qr_total": feedback_qs.filter(submission_source=Feedback.SubmissionSource.QR_PUBLIC).count(),
                 "assisted_total": feedback_qs.filter(submission_source=Feedback.SubmissionSource.ASSISTED_CAPTURE).count(),

@@ -221,6 +221,10 @@ class DashboardAccessTests(TestCase):
         self.assertIn("insurance_breakdown", response.context)
         self.assertIn("change_breakdown", response.context)
         self.assertIn("reason_not_received_breakdown", response.context)
+        self.assertIn("insurance_chart_summary", response.context)
+        self.assertIn("change_chart_summary", response.context)
+        self.assertIn("insurance_percentages", response.context)
+        self.assertIn("change_percentages", response.context)
 
     def test_dashboard_home_submission_breakdowns_count_parent_submissions_once(self):
         self._create_submission(
@@ -253,6 +257,25 @@ class DashboardAccessTests(TestCase):
         self.assertEqual(reason_breakdown[Feedback.ReasonNotReceived.MEDICINE], 1)
         self.assertEqual(facility_breakdown[self.facility_a.name], 2)
         self.assertEqual(province_breakdown[self.facility_a.province], 2)
+
+    def test_dashboard_home_chart_summaries_use_answered_submissions_and_clear_labels(self):
+        Feedback.objects.filter(facility=self.facility_a).update(
+            insurance=Feedback.INSURANCE.NONE,
+            change=Feedback.CHANGE.STAFF_ATTITUDE,
+        )
+        self.client.login(username="dash", password="secret123")
+
+        response = self.client.get(reverse("dashboard:home"))
+
+        self.assertEqual(response.status_code, 200)
+        insurance_breakdown = response.context["insurance_breakdown"]
+        change_breakdown = response.context["change_breakdown"]
+        self.assertEqual(response.context["insurance_chart_summary"], "1 respondents")
+        self.assertEqual(response.context["change_chart_summary"], "1 selections from 1 submissions")
+        self.assertEqual(response.context["change_chart_note"], "Multiple selections allowed")
+        self.assertEqual(insurance_breakdown[0]["label"], "No insurance used")
+        self.assertEqual(insurance_breakdown[0]["percentage"], 100.0)
+        self.assertEqual(change_breakdown[0]["percentage"], 100.0)
 
     def test_dashboard_user_can_open_detail_for_assigned_facility_feedback_only(self):
         visible_feedback = Feedback.objects.filter(facility=self.facility_a).first()

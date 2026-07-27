@@ -37,47 +37,94 @@
 </section>
 
 <section class="chart-grid">
-    <article class="panel">
-        <h2>Ratings by category</h2>
-        <canvas id="categoryChart"></canvas>
+    <article class="panel chart-panel chart-panel--standard">
+        <div class="chart-card-header">
+            <h2>Ratings by category</h2>
+            <p class="chart-summary">{{ total_rating_responses }} rating responses</p>
+        </div>
+        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
+            <canvas id="categoryChart" aria-label="Ratings by category chart"></canvas>
+        </div>
     </article>
-    <article class="panel">
-        <h2>Submissions over time</h2>
-        <canvas id="trendChart"></canvas>
+    <article class="panel chart-panel chart-panel--standard">
+        <div class="chart-card-header">
+            <h2>Submissions over time</h2>
+            <p class="chart-summary">{{ total_submissions }} submissions in current view</p>
+        </div>
+        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
+            <canvas id="trendChart" aria-label="Submissions over time chart"></canvas>
+        </div>
     </article>
-    <article class="panel">
-        <h2>Received all services needed</h2>
-        <canvas id="receivedServiceChart"></canvas>
+    <article class="panel chart-panel chart-panel--standard">
+        <div class="chart-card-header">
+            <h2>Received all services needed</h2>
+        </div>
+        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
+            <canvas id="receivedServiceChart" aria-label="Received all services needed chart"></canvas>
+        </div>
     </article>
 </section>
 
 <section class="chart-grid">
-    <article class="panel">
-        <h2>Paid out of pocket</h2>
-        <canvas id="paymentChart"></canvas>
+    <article class="panel chart-panel chart-panel--standard">
+        <div class="chart-card-header">
+            <h2>Paid out of pocket</h2>
+        </div>
+        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
+            <canvas id="paymentChart" aria-label="Paid out of pocket chart"></canvas>
+        </div>
     </article>
-    <article class="panel">
-        <h2>Got medicines here</h2>
-        <canvas id="medicinesChart"></canvas>
+    <article class="panel chart-panel chart-panel--standard">
+        <div class="chart-card-header">
+            <h2>Got medicines here</h2>
+        </div>
+        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
+            <canvas id="medicinesChart" aria-label="Got medicines here chart"></canvas>
+        </div>
     </article>
-    <article class="panel">
-        <h2>Would come back</h2>
-        <canvas id="revisitChart"></canvas>
+    <article class="panel chart-panel chart-panel--standard">
+        <div class="chart-card-header">
+            <h2>Would come back</h2>
+        </div>
+        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
+            <canvas id="revisitChart" aria-label="Would come back chart"></canvas>
+        </div>
     </article>
 </section>
 
 <section class="chart-grid">
-    <article class="panel">
-        <h2>Submission sources</h2>
-        <canvas id="sourceChart"></canvas>
+    <article class="panel chart-panel chart-panel--standard">
+        <div class="chart-card-header">
+            <h2>Submission sources</h2>
+            <p class="chart-summary">{{ total_submissions }} submissions</p>
+        </div>
+        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
+            <canvas id="sourceChart" aria-label="Submission sources chart"></canvas>
+        </div>
     </article>
-    <article class="panel">
-        <h2>Insurance used</h2>
-        <canvas id="insuranceChart"></canvas>
+    <article class="panel chart-panel chart-panel--category" aria-labelledby="insurance-chart-title">
+        <div class="chart-card-header">
+            <h2 id="insurance-chart-title">Insurance used</h2>
+            <p class="chart-summary">{{ insurance_chart_summary }}</p>
+        </div>
+        {% if insurance_chart_note %}
+            <p class="chart-note">{{ insurance_chart_note }}</p>
+        {% endif %}
+        <div class="chart-canvas-wrap chart-canvas-wrap--category">
+            <canvas id="insuranceChart" aria-label="Insurance used distribution chart"></canvas>
+        </div>
     </article>
-    <article class="panel">
-        <h2>Suggested top change</h2>
-        <canvas id="changeChart"></canvas>
+    <article class="panel chart-panel chart-panel--category" aria-labelledby="change-chart-title">
+        <div class="chart-card-header">
+            <h2 id="change-chart-title">Suggested top change</h2>
+            <p class="chart-summary">{{ change_chart_summary }}</p>
+        </div>
+        {% if change_chart_note %}
+            <p class="chart-note">{{ change_chart_note }}</p>
+        {% endif %}
+        <div class="chart-canvas-wrap chart-canvas-wrap--category">
+            <canvas id="changeChart" aria-label="Suggested top change distribution chart"></canvas>
+        </div>
     </article>
 </section>
 
@@ -127,6 +174,7 @@
 {{ trend_totals|json_script:"trend-totals" }}
 {{ trend_ratings|json_script:"trend-ratings" }}
 {{ category_labels|json_script:"category-labels" }}
+{{ category_full_labels|json_script:"category-full-labels" }}
 {{ category_totals|json_script:"category-totals" }}
 {{ source_labels|json_script:"source-labels" }}
 {{ source_totals|json_script:"source-totals" }}
@@ -139,14 +187,19 @@
 {{ revisit_labels|json_script:"revisit-labels" }}
 {{ revisit_totals|json_script:"revisit-totals" }}
 {{ insurance_labels|json_script:"insurance-labels" }}
+{{ insurance_full_labels|json_script:"insurance-full-labels" }}
 {{ insurance_totals|json_script:"insurance-totals" }}
+{{ insurance_percentages|json_script:"insurance-percentages" }}
 {{ change_labels|json_script:"change-labels" }}
+{{ change_full_labels|json_script:"change-full-labels" }}
 {{ change_totals|json_script:"change-totals" }}
+{{ change_percentages|json_script:"change-percentages" }}
 <script>
     const trendLabels = JSON.parse(document.getElementById("trend-labels").textContent);
     const trendTotals = JSON.parse(document.getElementById("trend-totals").textContent);
     const trendRatings = JSON.parse(document.getElementById("trend-ratings").textContent);
     const categoryLabels = JSON.parse(document.getElementById("category-labels").textContent);
+    const categoryFullLabels = JSON.parse(document.getElementById("category-full-labels").textContent);
     const categoryTotals = JSON.parse(document.getElementById("category-totals").textContent);
     const sourceLabels = JSON.parse(document.getElementById("source-labels").textContent);
     const sourceTotals = JSON.parse(document.getElementById("source-totals").textContent);
@@ -159,19 +212,158 @@
     const revisitLabels = JSON.parse(document.getElementById("revisit-labels").textContent);
     const revisitTotals = JSON.parse(document.getElementById("revisit-totals").textContent);
     const insuranceLabels = JSON.parse(document.getElementById("insurance-labels").textContent);
+    const insuranceFullLabels = JSON.parse(document.getElementById("insurance-full-labels").textContent);
     const insuranceTotals = JSON.parse(document.getElementById("insurance-totals").textContent);
+    const insurancePercentages = JSON.parse(document.getElementById("insurance-percentages").textContent);
     const changeLabels = JSON.parse(document.getElementById("change-labels").textContent);
+    const changeFullLabels = JSON.parse(document.getElementById("change-full-labels").textContent);
     const changeTotals = JSON.parse(document.getElementById("change-totals").textContent);
+    const changePercentages = JSON.parse(document.getElementById("change-percentages").textContent);
     const palette = ["#0f4c5c", "#2c7da0", "#468faf", "#89c2d9", "#a9d6e5", "#f0b429", "#ef476f"];
-    new Chart(document.getElementById("categoryChart"), {
+
+    function setChartHeight(canvasId, optionCount, minimumHeight = 220, rowHeight = 44) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) {
+            return;
+        }
+
+        canvas.parentElement.style.height = `${Math.max(minimumHeight, optionCount * rowHeight)}px`;
+    }
+
+    function wholeNumberTickStep(maxValue) {
+        if (maxValue <= 5) {
+            return 1;
+        }
+        if (maxValue <= 20) {
+            return 5;
+        }
+        if (maxValue <= 50) {
+            return 10;
+        }
+        return Math.ceil(maxValue / 25) * 5;
+    }
+
+    function createStandardChart(canvasId, config) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) {
+            return null;
+        }
+
+        return new Chart(canvas, config);
+    }
+
+    function createHorizontalCategoryChart(options) {
+        const canvas = document.getElementById(options.canvasId);
+        if (!canvas) {
+            return null;
+        }
+
+        if (!options.labels.length || !options.values.length) {
+            canvas.parentElement.innerHTML = `<div class="chart-empty-state">${options.emptyMessage}</div>`;
+            return null;
+        }
+
+        setChartHeight(options.canvasId, options.labels.length, options.minimumHeight || 220, options.rowHeight || 44);
+
+        const maxValue = Math.max(...options.values, 0);
+
+        return new Chart(canvas, {
+            type: "bar",
+            data: {
+                labels: options.labels,
+                datasets: [{
+                    label: options.questionType === "multiple" ? "Selections" : "Responses",
+                    data: options.values,
+                    backgroundColor: options.color,
+                    borderWidth: 0,
+                    borderRadius: 6,
+                    barThickness: 24,
+                    maxBarThickness: 30
+                }]
+            },
+            options: {
+                indexAxis: "y",
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title(tooltipItems) {
+                                const index = tooltipItems[0].dataIndex;
+                                if (options.fullLabels && options.fullLabels[index]) {
+                                    return options.fullLabels[index];
+                                }
+                                return tooltipItems[0].label;
+                            },
+                            label(context) {
+                                const value = context.raw || 0;
+                                const percentage = options.percentages[context.dataIndex] || 0;
+                                const noun = options.questionType === "multiple" ? "selections" : "responses";
+                                const denominator = options.questionType === "multiple"
+                                    ? "of responding submissions"
+                                    : "of answered submissions";
+                                return [`${value} ${noun}`, `${percentage}% ${denominator}`];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        suggestedMax: maxValue ? maxValue + wholeNumberTickStep(maxValue) : 1,
+                        ticks: {
+                            precision: 0,
+                            stepSize: wholeNumberTickStep(maxValue)
+                        },
+                        grid: {
+                            color: "rgba(217, 226, 236, 0.8)"
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            autoSkip: false,
+                            color: "#102a43",
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            display: false
+                        },
+                        border: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    createStandardChart("categoryChart", {
         type: "bar",
         data: {
             labels: categoryLabels,
             datasets: [{ label: "Rating responses", data: categoryTotals, backgroundColor: "#14746f" }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        title(tooltipItems) {
+                            return categoryFullLabels[tooltipItems[0].dataIndex] || tooltipItems[0].label;
+                        }
+                    }
+                }
+            }
         }
     });
 
-    new Chart(document.getElementById("trendChart"), {
+    createStandardChart("trendChart", {
         type: "line",
         data: {
             labels: trendLabels,
@@ -181,6 +373,8 @@
             ]
         },
         options: {
+            responsive: true,
+            maintainAspectRatio: false,
             scales: {
                 y: { beginAtZero: true, position: "left" },
                 y1: { beginAtZero: true, position: "right", min: 0, max: 5, grid: { drawOnChartArea: false } }
@@ -188,72 +382,86 @@
         }
     });
 
-    new Chart(document.getElementById("receivedServiceChart"), {
+    createStandardChart("receivedServiceChart", {
         type: "pie",
         data: {
             labels: receivedServiceLabels,
             datasets: [{ data: receivedServiceTotals, backgroundColor: palette }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
         }
     });
 
-    new Chart(document.getElementById("paymentChart"), {
+    createStandardChart("paymentChart", {
         type: "pie",
         data: {
             labels: paymentLabels,
             datasets: [{ data: paymentTotals, backgroundColor: palette }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
         }
     });
 
-    new Chart(document.getElementById("sourceChart"), {
+    createStandardChart("sourceChart", {
         type: "doughnut",
         data: {
             labels: sourceLabels,
             datasets: [{ data: sourceTotals, backgroundColor: palette }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
         }
     });
 
-    new Chart(document.getElementById("medicinesChart"), {
+    createStandardChart("medicinesChart", {
         type: "pie",
         data: {
             labels: medicinesLabels,
             datasets: [{ data: medicinesTotals, backgroundColor: palette }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
         }
     });
 
-    new Chart(document.getElementById("revisitChart"), {
+    createStandardChart("revisitChart", {
         type: "pie",
         data: {
             labels: revisitLabels,
             datasets: [{ data: revisitTotals, backgroundColor: palette }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
         }
     });
 
-    new Chart(document.getElementById("insuranceChart"), {
-        type: "bar",
-        data: {
-            labels: insuranceLabels,
-            datasets: [{ label: "Responses", data: insuranceTotals, backgroundColor: "#2c7da0" }]
-        },
-        options: {
-            indexAxis: "y",
-            scales: {
-                x: { beginAtZero: true }
-            }
-        }
+    createHorizontalCategoryChart({
+        canvasId: "insuranceChart",
+        labels: insuranceLabels,
+        values: insuranceTotals,
+        percentages: insurancePercentages,
+        fullLabels: insuranceFullLabels,
+        questionType: "single",
+        emptyMessage: "No feedback responses are available for the selected filters.",
+        color: "#2c7da0"
     });
 
-    new Chart(document.getElementById("changeChart"), {
-        type: "bar",
-        data: {
-            labels: changeLabels,
-            datasets: [{ label: "Responses", data: changeTotals, backgroundColor: "#f0b429" }]
-        },
-        options: {
-            indexAxis: "y",
-            scales: {
-                x: { beginAtZero: true }
-            }
-        }
+    createHorizontalCategoryChart({
+        canvasId: "changeChart",
+        labels: changeLabels,
+        values: changeTotals,
+        percentages: changePercentages,
+        fullLabels: changeFullLabels,
+        questionType: "multiple",
+        emptyMessage: "No feedback responses are available for the selected filters.",
+        color: "#f0b429"
     });
 </script>
 {% endblock %}
