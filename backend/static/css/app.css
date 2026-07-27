@@ -450,21 +450,20 @@ button,
 .chart-canvas-wrap {
     position: relative;
     width: 100%;
+    flex: none;
+    overflow: hidden;
 }
 
 .chart-canvas-wrap--standard {
     height: 260px;
-    flex: 1;
 }
 
 .chart-canvas-wrap--category {
     height: 220px;
-    flex: 1;
 }
 
 .chart-canvas-wrap canvas {
-    width: 100% !important;
-    height: 100% !important;
+    display: block;
 }
 
 .chart-empty-state {
