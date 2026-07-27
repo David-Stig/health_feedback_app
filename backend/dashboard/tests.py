@@ -1,16 +1,17 @@
 import tempfile
 import csv
-from io import StringIO
+from io import StringIO, BytesIO
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from openpyxl import load_workbook
 
 from dashboard.models import DashboardUserProfile
 from dashboard.views import EXPORT_COLUMNS
 from facilities.forms import FacilityForm
 from facilities.models import Facility
-from feedback.models import Feedback
+from feedback.models import Feedback, RatingResponse
 
 User = get_user_model()
 TEST_MEDIA_ROOT = tempfile.mkdtemp()
@@ -18,6 +19,24 @@ TEST_MEDIA_ROOT = tempfile.mkdtemp()
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
 class DashboardAccessTests(TestCase):
+    def _create_submission(self, facility, *, rating_pairs, **shared_fields):
+        submission = Feedback.objects.create(
+            facility=facility,
+            **shared_fields,
+        )
+        RatingResponse.objects.bulk_create(
+            [
+                RatingResponse(
+                    submission=submission,
+                    category=category,
+                    rating=rating,
+                    comment=comment,
+                )
+                for category, rating, comment in rating_pairs
+            ]
+        )
+        return submission
+
     def setUp(self):
         self.facility_a = Facility.objects.create(name="Facility A", district="A", province="P1")
         self.facility_b = Facility.objects.create(name="Facility B", district="B", province="P2")
@@ -27,16 +46,14 @@ class DashboardAccessTests(TestCase):
         profile.facility = self.facility_a
         profile.save()
 
-        Feedback.objects.create(
-            facility=self.facility_a,
-            category=Feedback.Category.WAITING_TIME,
-            rating=4,
+        self._create_submission(
+            self.facility_a,
+            rating_pairs=[(Feedback.Category.WAITING_TIME, 4, "Good wait time")],
             gender=Feedback.Gender.FEMALE,
         )
-        Feedback.objects.create(
-            facility=self.facility_b,
-            category=Feedback.Category.CLEANLINESS,
-            rating=2,
+        self._create_submission(
+            self.facility_b,
+            rating_pairs=[(Feedback.Category.CLEANLINESS, 2, "Needs improvement")],
             gender=Feedback.Gender.MALE,
         )
 
@@ -52,10 +69,9 @@ class DashboardAccessTests(TestCase):
 
     def test_feedback_list_paginates_to_ten_responses(self):
         for _ in range(11):
-            Feedback.objects.create(
-                facility=self.facility_a,
-                category=Feedback.Category.WAITING_TIME,
-                rating=5,
+            self._create_submission(
+                self.facility_a,
+                rating_pairs=[(Feedback.Category.WAITING_TIME, 5, "")],
                 gender=Feedback.Gender.FEMALE,
             )
 
@@ -116,6 +132,45 @@ class DashboardAccessTests(TestCase):
         self.assertIn("Hearing (even with hearing aid), Walking or climbing steps", rows[1])
         self.assertIn("Improve triage", rows[1])
         self.assertIn("Waiting area needs seating", rows[1])
+        self.assertIn("4", rows[1])
+
+    def test_dashboard_submission_export_has_one_row_per_submission(self):
+        self._create_submission(
+            self.facility_a,
+            rating_pairs=[
+                (Feedback.Category.WAITING_TIME, 5, "Very fast"),
+                (Feedback.Category.CLEANLINESS, 3, "Average"),
+                (Feedback.Category.MEDICATION, 4, "Medicines available"),
+            ],
+            gender=Feedback.Gender.FEMALE,
+            comment="General note",
+        )
+        self.client.login(username="dash", password="secret123")
+
+        response = self.client.get(reverse("dashboard:export_csv"))
+
+        rows = list(csv.reader(StringIO(response.content.decode("utf-8"))))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(rows), 3)
+        header = rows[0]
+        latest_row = rows[2]
+        self.assertIn("Ratings answered", header)
+        self.assertIn("Average rating", header)
+        self.assertEqual(latest_row[header.index("Ratings answered")], "3")
+        self.assertEqual(latest_row[header.index("Waiting time before being seen rating")], "5")
+        self.assertEqual(latest_row[header.index("Waiting time before being seen comment")], "Very fast")
+        self.assertEqual(latest_row[header.index("Cleanliness of the health facility rating")], "3")
+        self.assertEqual(latest_row[header.index("Availability of Medication comment")], "Medicines available")
+
+    def test_dashboard_excel_export_uses_submission_sheet_and_filename(self):
+        self.client.login(username="dash", password="secret123")
+
+        response = self.client.get(reverse("dashboard:export_excel"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("feedback-submissions-export.xlsx", response["Content-Disposition"])
+        workbook = load_workbook(BytesIO(response.content))
+        self.assertIn("Feedback Submissions", workbook.sheetnames)
 
     def test_dashboard_home_includes_new_analytics_context(self):
         Feedback.objects.filter(facility=self.facility_a).update(

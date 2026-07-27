@@ -42,20 +42,20 @@
             <thead>
                 <tr>
                     <th>Submitted</th>
-                    <th>Category</th>
-                    <th>Rating</th>
+                    <th>Ratings answered</th>
+                    <th>Average rating</th>
                     <th>Captured by</th>
-                    <th>Comment</th>
+                    <th>Source</th>
                 </tr>
             </thead>
             <tbody>
                 {% for entry in responses %}
                     <tr>
                         <td>{{ entry.created_at|date:"d/m/Y H:i" }}</td>
-                        <td>{{ entry.get_category_display }}</td>
-                        <td>{{ entry.rating }}</td>
+                        <td>{{ entry.rating_response_count }}</td>
+                        <td>{% if entry.average_rating_value %}{{ entry.average_rating_value|floatformat:1 }}{% else %}-{% endif %}</td>
                         <td>{{ entry.captured_by.username|default:"-" }}</td>
-                        <td>{{ entry.comment|default:"-" }}</td>
+                        <td>{{ entry.get_submission_source_display }}</td>
                     </tr>
                 {% empty %}
                     <tr><td colspan="5">No responses captured yet.</td></tr>

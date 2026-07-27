@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.utils import timezone
 
-from feedback.models import Feedback
+from feedback.models import Feedback, RatingResponse
 
 
 def create_feedback_entries_from_cleaned_data(
@@ -18,35 +18,48 @@ def create_feedback_entries_from_cleaned_data(
     fingerprint: str = "",
 ):
     excluded_fields = {"facility", "comment", "medicine"}
-    feedback_base_data = {
+    submission_data = {
         field_name: value
         for field_name, value in cleaned_data.items()
         if field_name not in excluded_fields
     }
     effective_submitted_on = submitted_on or timezone.localdate()
-
-    pending_entries = []
+    normalized_ratings = []
     for category_value, rating_value in ratings.items():
         if not rating_value:
             continue
-        pending_entries.append(
-            Feedback(
-                facility=facility,
-                category=category_value,
-                rating=int(rating_value),
-                comment=comments.get(category_value, "") or "",
-                submission_source=submission_source,
-                collection_session=collection_session,
-                import_batch=import_batch,
-                captured_by=captured_by,
-                submitted_on=effective_submitted_on,
-                fingerprint=fingerprint,
-                **feedback_base_data,
-            )
+        normalized_ratings.append(
+            {
+                "category": category_value,
+                "rating": int(rating_value),
+                "comment": comments.get(category_value, "") or "",
+            }
         )
 
-    if not pending_entries:
-        return []
+    has_meaningful_response = bool(normalized_ratings)
+    if not has_meaningful_response:
+        return None
 
     with transaction.atomic():
-        return Feedback.objects.bulk_create(pending_entries)
+        submission = Feedback.objects.create(
+            facility=facility,
+            submission_source=submission_source,
+            collection_session=collection_session,
+            import_batch=import_batch,
+            captured_by=captured_by,
+            submitted_on=effective_submitted_on,
+            fingerprint=fingerprint,
+            **submission_data,
+        )
+        RatingResponse.objects.bulk_create(
+            [
+                RatingResponse(
+                    submission=submission,
+                    category=item["category"],
+                    rating=item["rating"],
+                    comment=item["comment"],
+                )
+                for item in normalized_ratings
+            ]
+        )
+    return submission

@@ -385,8 +385,12 @@ class Feedback(models.Model):
     fingerprint = models.CharField(max_length=64, blank=True, db_index=True)
     is_active = models.BooleanField(default=True, db_index=True)
     rolled_back_at = models.DateTimeField(null=True, blank=True)
-    rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
-    category = models.CharField(max_length=64, choices=Category.choices)
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        null=True,
+        blank=True,
+    )
+    category = models.CharField(max_length=64, choices=Category.choices, blank=True)
     comment = models.TextField(blank=True)
     age_group = models.CharField(max_length=20, choices=AgeGroup.choices, blank=True)
     gender = models.CharField(max_length=24, choices=Gender.choices, blank=True)
@@ -422,9 +426,50 @@ class Feedback(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"{self.facility.name} - {self.category} ({self.rating})"
+        return f"{self.facility.name} feedback #{self.pk}"
+
+    @property
+    def rating_response_count(self) -> int:
+        if hasattr(self, "rating_response_total"):
+            return self.rating_response_total
+        return self.rating_responses.count()
+
+    @property
+    def average_rating_score(self):
+        if hasattr(self, "average_rating_value"):
+            return self.average_rating_value
+        aggregate = self.rating_responses.aggregate(avg=models.Avg("rating"))
+        return aggregate["avg"]
 
     def save(self, *args, **kwargs):
         if not self.submitted_on:
             self.submitted_on = timezone.localdate()
         super().save(*args, **kwargs)
+
+
+class RatingResponse(models.Model):
+    submission = models.ForeignKey(
+        Feedback,
+        on_delete=models.CASCADE,
+        related_name="rating_responses",
+    )
+    category = models.CharField(max_length=64, choices=Feedback.Category.choices)
+    rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["submission", "category"],
+                name="unique_rating_category_per_submission",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["submission", "category"]),
+            models.Index(fields=["category"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.submission_id} - {self.category} ({self.rating})"

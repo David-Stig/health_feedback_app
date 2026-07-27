@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from facilities.models import Facility
-from feedback.models import Feedback
+from feedback.models import Feedback, RatingResponse
 
 
 TEST_MEDIA_ROOT = tempfile.mkdtemp()
@@ -65,13 +65,14 @@ class FeedbackSubmissionTests(TestCase):
             f"comment_{Feedback.Category.CLEANLINESS}": "Very clean.",
         }
 
-    def test_submission_persists_all_shared_answers_for_each_rating(self):
+    def test_submission_creates_one_parent_submission_with_multiple_rating_responses(self):
         response = self.client.post(self.facility_url, data=self._valid_payload())
 
         self.assertRedirects(response, reverse("feedback:thank_you"))
-        self.assertEqual(Feedback.objects.count(), 2)
+        self.assertEqual(Feedback.objects.count(), 1)
+        self.assertEqual(RatingResponse.objects.count(), 2)
 
-        entry = Feedback.objects.get(category=Feedback.Category.WAITING_TIME)
+        entry = Feedback.objects.get()
         self.assertEqual(entry.facility, self.facility)
         self.assertEqual(entry.gender, Feedback.Gender.FEMALE)
         self.assertEqual(entry.age_group, Feedback.AgeGroup.AGE_25_34)
@@ -79,7 +80,14 @@ class FeedbackSubmissionTests(TestCase):
         self.assertEqual(entry.service, Feedback.Service.TREATMENT)
         self.assertEqual(entry.difficulty, [Feedback.Difficulty.NONE])
         self.assertEqual(entry.payment, Feedback.Payment.NO)
-        self.assertEqual(entry.comment, "Service was fine.")
+        self.assertEqual(entry.rating_response_count, 2)
+        self.assertTrue(
+            entry.rating_responses.filter(
+                category=Feedback.Category.WAITING_TIME,
+                rating=4,
+                comment="Service was fine.",
+            ).exists()
+        )
 
     def test_submission_rate_limit_blocks_second_valid_submit(self):
         first_response = self.client.post(self.facility_url, data=self._valid_payload())
@@ -88,7 +96,8 @@ class FeedbackSubmissionTests(TestCase):
         self.assertRedirects(first_response, reverse("feedback:thank_you"))
         self.assertEqual(second_response.status_code, 200)
         self.assertContains(second_response, "Too many submissions from this connection")
-        self.assertEqual(Feedback.objects.count(), 2)
+        self.assertEqual(Feedback.objects.count(), 1)
+        self.assertEqual(RatingResponse.objects.count(), 2)
 
     def test_submission_with_honeypot_medicine_field_is_rejected(self):
         payload = self._valid_payload()
@@ -130,8 +139,11 @@ class FeedbackSubmissionTests(TestCase):
         response = self.client.post(self.url, data=payload)
 
         self.assertRedirects(response, reverse("feedback:thank_you"))
-        latest_entry = Feedback.objects.filter(comment="Still linked to original facility.").latest("created_at")
+        latest_entry = Feedback.objects.latest("created_at")
         self.assertEqual(latest_entry.facility, self.facility)
+        self.assertTrue(
+            latest_entry.rating_responses.filter(comment="Still linked to original facility.").exists()
+        )
 
     def test_facility_specific_route_locks_selected_facility_on_get(self):
         response = self.client.get(self.facility_url)
@@ -172,5 +184,6 @@ class FeedbackSubmissionTests(TestCase):
         response = self.client.post(self.facility_url, data=payload)
 
         self.assertRedirects(response, reverse("feedback:thank_you"))
-        self.assertEqual(Feedback.objects.count(), 2)
+        self.assertEqual(Feedback.objects.count(), 1)
+        self.assertEqual(RatingResponse.objects.count(), 2)
         mocked_verify_turnstile.assert_called_once()

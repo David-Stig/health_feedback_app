@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from dashboard.models import DashboardUserProfile
 from facilities.models import Facility
-from feedback.models import CollectionSession, Feedback
+from feedback.models import CollectionSession, Feedback, RatingResponse
 
 User = get_user_model()
 TEST_MEDIA_ROOT = tempfile.mkdtemp()
@@ -119,10 +119,19 @@ class BulkWorkflowTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("dashboard:bulk_session_capture", args=[session.pk]))
-        entry = Feedback.objects.get(comment="Captured in outreach.")
+        entry = Feedback.objects.get()
         self.assertEqual(entry.submission_source, Feedback.SubmissionSource.ASSISTED_CAPTURE)
         self.assertEqual(entry.collection_session, session)
         self.assertEqual(entry.captured_by, self.staff_user)
+        self.assertEqual(entry.rating_response_count, 1)
+        self.assertTrue(
+            RatingResponse.objects.filter(
+                submission=entry,
+                category=Feedback.Category.WAITING_TIME,
+                rating=4,
+                comment="Captured in outreach.",
+            ).exists()
+        )
 
     def test_paused_session_does_not_accept_new_responses(self):
         session = self._session(status=CollectionSession.Status.PAUSED)

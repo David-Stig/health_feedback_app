@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Avg, Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -109,6 +109,11 @@ class CollectionSessionDetailView(FacilityScopedBulkMixin, DetailView):
         context["responses"] = (
             self.object.feedback_entries.filter(is_active=True)
             .select_related("facility", "captured_by")
+            .prefetch_related("rating_responses")
+            .annotate(
+                rating_response_total=Count("rating_responses", distinct=True),
+                average_rating_value=Avg("rating_responses__rating"),
+            )
             .order_by("-created_at")[:20]
         )
         return context

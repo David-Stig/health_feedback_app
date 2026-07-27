@@ -17,7 +17,7 @@ from django.views.generic import CreateView, DeleteView, DetailView, FormView, L
 
 from facilities.forms import BulkFacilityUploadForm, FacilityForm, ZAMBIA_PROVINCES_AND_DISTRICTS
 from facilities.models import Facility
-from feedback.models import Feedback
+from feedback.models import Feedback, RatingResponse
 
 from .forms import (
     DashboardAccountForm,
@@ -32,6 +32,10 @@ from .models import get_or_create_dashboard_profile
 
 User = get_user_model()
 
+RATING_EXPORT_COLUMNS = [
+    (choice_value, choice_label) for choice_value, choice_label in Feedback.Category.choices
+]
+
 EXPORT_COLUMNS = [
     ("Date", lambda entry: entry.created_at.strftime("%Y-%m-%d %H:%M")),
     ("Submitted on", lambda entry: entry.submitted_on.strftime("%Y-%m-%d") if entry.submitted_on else ""),
@@ -40,9 +44,8 @@ EXPORT_COLUMNS = [
     ("Province", lambda entry: entry.facility.province),
     ("Submission source", lambda entry: entry.get_submission_source_display()),
     ("Collection session", lambda entry: entry.collection_session.session_code if entry.collection_session_id else ""),
-    ("Rating", lambda entry: entry.rating),
-    ("Category", lambda entry: entry.category),
-    ("Comment", lambda entry: entry.comment),
+    ("Ratings answered", lambda entry: entry.rating_response_count),
+    ("Average rating", lambda entry: round(entry.average_rating_score or 0, 2) if entry.average_rating_score else ""),
     ("Age group", lambda entry: entry.age_group),
     ("Gender", lambda entry: entry.gender),
     ("Distance", lambda entry: entry.distance),
@@ -75,10 +78,31 @@ EXPORT_COLUMNS = [
     ("Anything else", lambda entry: entry.aob),
     ("Anything else detail", lambda entry: entry.aob_other),
 ]
+EXPORT_COLUMNS += [
+    (f"{label} rating", lambda entry, category=category: build_rating_map(entry).get(category, {}).get("rating", ""))
+    for category, label in RATING_EXPORT_COLUMNS
+]
+EXPORT_COLUMNS += [
+    (f"{label} comment", lambda entry, category=category: build_rating_map(entry).get(category, {}).get("comment", ""))
+    for category, label in RATING_EXPORT_COLUMNS
+]
 
 
 def export_row(entry):
     return [getter(entry) for _label, getter in EXPORT_COLUMNS]
+
+
+def build_rating_map(entry):
+    responses = getattr(entry, "_prefetched_objects_cache", {}).get("rating_responses")
+    if responses is None:
+        responses = entry.rating_responses.all()
+    return {
+        response.category: {
+            "rating": response.rating,
+            "comment": response.comment,
+        }
+        for response in responses
+    }
 
 
 def choice_breakdown(queryset, field_name, choices, *, include_blank=False):
@@ -121,7 +145,15 @@ def display_choice_list(values, choices):
 
 
 def scoped_feedback_queryset(user):
-    queryset = Feedback.objects.select_related("facility", "collection_session", "import_batch", "captured_by").filter(is_active=True)
+    queryset = (
+        Feedback.objects.select_related("facility", "collection_session", "import_batch", "captured_by")
+        .prefetch_related("rating_responses")
+        .annotate(
+            rating_response_total=Count("rating_responses", distinct=True),
+            average_rating_value=Avg("rating_responses__rating"),
+        )
+        .filter(is_active=True)
+    )
     if user.is_authenticated and not user.is_staff:
         profile = get_or_create_dashboard_profile(user)
         if profile.is_dashboard_user and profile.facility_id:
@@ -141,9 +173,9 @@ def filtered_feedback_queryset(user, params):
     if params.get("gender"):
         queryset = queryset.filter(gender=params["gender"])
     if params.get("category"):
-        queryset = queryset.filter(category=params["category"])
+        queryset = queryset.filter(rating_responses__category=params["category"]).distinct()
     if params.get("rating"):
-        queryset = queryset.filter(rating=params["rating"])
+        queryset = queryset.filter(rating_responses__rating=params["rating"]).distinct()
     if params.get("submission_source"):
         queryset = queryset.filter(submission_source=params["submission_source"])
     if params.get("collection_session"):
@@ -155,7 +187,10 @@ def filtered_feedback_queryset(user, params):
     if params.get("date_to"):
         queryset = queryset.filter(created_at__date__lte=params["date_to"])
     if params.get("search"):
-        queryset = queryset.filter(comment__icontains=params["search"])
+        queryset = queryset.filter(
+            Q(comment__icontains=params["search"])
+            | Q(rating_responses__comment__icontains=params["search"])
+        ).distinct()
 
     return queryset
 
@@ -179,7 +214,7 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
             feedback_qs.filter(created_at__gte=recent_cutoff)
             .annotate(day=TruncDate("created_at"))
             .values("day")
-            .annotate(total=Count("id"), average_rating=Avg("rating"))
+            .annotate(total=Count("id", distinct=True), average_rating=Avg("rating_responses__rating"))
             .order_by("day")
         )
 
@@ -189,8 +224,9 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
         distance_breakdown = list(
             feedback_qs.values("distance").annotate(total=Count("id")).order_by("-total")
         )
+        rating_qs = RatingResponse.objects.filter(submission__in=feedback_qs)
         category_breakdown = list(
-            feedback_qs.values("category").annotate(total=Count("id")).order_by("-total")
+            rating_qs.values("category").annotate(total=Count("id"), average_rating=Avg("rating")).order_by("-total")
         )
         received_service_breakdown = choice_breakdown(
             feedback_qs,
@@ -238,7 +274,7 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
             {
                 "total_submissions": total_submissions,
                 "facility_count": Facility.objects.count(),
-                "average_rating": round(feedback_qs.aggregate(avg=Avg("rating"))["avg"] or 0, 2),
+                "average_rating": round(rating_qs.aggregate(avg=Avg("rating"))["avg"] or 0, 2),
                 "gender_breakdown": gender_breakdown,
                 "category_breakdown": category_breakdown,
                 "source_breakdown": source_breakdown,
@@ -256,7 +292,7 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
                 "trend_ratings": [round(item["average_rating"] or 0, 2) for item in trend_data],
                 "gender_labels": [item["gender"] for item in gender_breakdown],
                 "gender_totals": [item["total"] for item in gender_breakdown],
-                "category_labels": [item["category"] for item in category_breakdown],
+                "category_labels": [dict(Feedback.Category.choices).get(item["category"], item["category"]) for item in category_breakdown],
                 "category_totals": [item["total"] for item in category_breakdown],
                 "source_labels": [item["label"] for item in source_breakdown],
                 "source_totals": [item["total"] for item in source_breakdown],
@@ -274,12 +310,9 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
                 "change_totals": [item["total"] for item in change_breakdown],
                 "public_qr_total": feedback_qs.filter(submission_source=Feedback.SubmissionSource.QR_PUBLIC).count(),
                 "assisted_total": feedback_qs.filter(submission_source=Feedback.SubmissionSource.ASSISTED_CAPTURE).count(),
-                "imported_total": feedback_qs.filter(submission_source=Feedback.SubmissionSource.SPREADSHEET_IMPORT).count(),
                 "active_session_total": Feedback.collection_session.field.related_model.objects.filter(status="active").count(),
-                "completed_import_total": Feedback.import_batch.field.related_model.objects.filter(status__in=["completed", "partially_completed"]).count(),
-                "rejected_import_row_total": sum(
-                    Feedback.import_batch.field.related_model.objects.values_list("invalid_rows", flat=True)
-                ),
+                "total_rating_responses": rating_qs.count(),
+                "average_ratings_per_submission": round((rating_qs.count() / total_submissions), 2) if total_submissions else 0,
             }
         )
         return context
@@ -365,11 +398,21 @@ class FeedbackDetailView(DashboardAccessMixin, DetailView):
                     ("Facility", entry.facility.name),
                     ("District", entry.facility.district),
                     ("Province", entry.facility.province),
-                    ("Rating", entry.rating),
-                    ("Category", display_choice(entry, "category")),
+                    ("Ratings answered", entry.rating_response_count),
+                    ("Average rating", round(entry.average_rating_score, 2) if entry.average_rating_score else "Not provided"),
                     ("Submission source", entry.get_submission_source_display()),
                     ("Collection session", entry.collection_session.session_code if entry.collection_session_id else "Not linked"),
                 ],
+            ),
+            (
+                "Rating responses",
+                [
+                    (
+                        dict(Feedback.Category.choices).get(response.category, response.category),
+                        f"{response.rating}" + (f" - {display_text(response.comment, default='')}" if display_text(response.comment, default='') else ""),
+                    )
+                    for response in entry.rating_responses.all()
+                ] or [("Ratings", "No rating responses recorded")],
             ),
             (
                 "Respondent and visit details",
@@ -589,9 +632,9 @@ def export_feedback_csv(request):
     if not (request.user.is_staff or get_or_create_dashboard_profile(request.user).is_dashboard_user):
         return HttpResponse(status=403)
 
-    queryset = filtered_feedback_queryset(request.user, request.GET).select_related("facility")
+    queryset = filtered_feedback_queryset(request.user, request.GET).select_related("facility").prefetch_related("rating_responses")
     response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = 'attachment; filename="feedback-export.csv"'
+    response["Content-Disposition"] = 'attachment; filename="feedback-submissions-export.csv"'
 
 
     writer = csv.writer(response)
@@ -613,10 +656,10 @@ def export_feedback_excel(request):
 
     from openpyxl import Workbook
 
-    queryset = filtered_feedback_queryset(request.user, request.GET).select_related("facility")
+    queryset = filtered_feedback_queryset(request.user, request.GET).select_related("facility").prefetch_related("rating_responses")
     workbook = Workbook()
     sheet = workbook.active
-    sheet.title = "Feedback"
+    sheet.title = "Feedback Submissions"
     sheet.append([label for label, _getter in EXPORT_COLUMNS])
 
     for entry in queryset:
@@ -625,7 +668,7 @@ def export_feedback_excel(request):
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    response["Content-Disposition"] = 'attachment; filename="feedback-export.xlsx"'
+    response["Content-Disposition"] = 'attachment; filename="feedback-submissions-export.xlsx"'
     workbook.save(response)
     return response
 
