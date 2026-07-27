@@ -108,7 +108,7 @@ def build_rating_map(entry):
 def choice_breakdown(queryset, field_name, choices, *, include_blank=False):
     choice_map = dict(choices)
     breakdown = list(
-        queryset.values(field_name).annotate(total=Count("id")).order_by("-total")
+        queryset.values(field_name).annotate(total=Count("id", distinct=True)).order_by("-total")
     )
 
     items = []
@@ -220,10 +220,10 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
         )
 
         gender_breakdown = list(
-            feedback_qs.values("gender").annotate(total=Count("id")).order_by("-total")
+            feedback_qs.values("gender").annotate(total=Count("id", distinct=True)).order_by("-total")
         )
         distance_breakdown = list(
-            feedback_qs.values("distance").annotate(total=Count("id")).order_by("-total")
+            feedback_qs.values("distance").annotate(total=Count("id", distinct=True)).order_by("-total")
         )
         rating_qs = RatingResponse.objects.filter(submission__in=feedback_qs)
         category_breakdown = list(
@@ -265,10 +265,10 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
             Feedback.ReasonNotReceived.choices,
         )
         facility_breakdown = list(
-            feedback_qs.values("facility__name").annotate(total=Count("id")).order_by("-total")[:10]
+            feedback_qs.values("facility__name").annotate(total=Count("id", distinct=True)).order_by("-total")[:10]
         )
         province_breakdown = list(
-            feedback_qs.values("facility__province").annotate(total=Count("id")).order_by("-total")
+            feedback_qs.values("facility__province").annotate(total=Count("id", distinct=True)).order_by("-total")
         )  
 
         context.update(

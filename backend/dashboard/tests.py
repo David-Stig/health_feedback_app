@@ -222,6 +222,38 @@ class DashboardAccessTests(TestCase):
         self.assertIn("change_breakdown", response.context)
         self.assertIn("reason_not_received_breakdown", response.context)
 
+    def test_dashboard_home_submission_breakdowns_count_parent_submissions_once(self):
+        self._create_submission(
+            self.facility_a,
+            rating_pairs=[
+                (Feedback.Category.WAITING_TIME, 5, "Fast"),
+                (Feedback.Category.CLEANLINESS, 4, "Clean"),
+                (Feedback.Category.MEDICATION, 3, "Available"),
+            ],
+            submission_source=Feedback.SubmissionSource.QR_PUBLIC,
+            insurance=Feedback.INSURANCE.NHIMA,
+            change=Feedback.CHANGE.MORE_MEDICINES,
+            reason_not_received=Feedback.ReasonNotReceived.MEDICINE,
+        )
+        self.client.login(username="dash", password="secret123")
+
+        response = self.client.get(reverse("dashboard:home"))
+
+        self.assertEqual(response.status_code, 200)
+        source_breakdown = {item["value"]: item["total"] for item in response.context["source_breakdown"]}
+        insurance_breakdown = {item["value"]: item["total"] for item in response.context["insurance_breakdown"]}
+        change_breakdown = {item["value"]: item["total"] for item in response.context["change_breakdown"]}
+        reason_breakdown = {item["value"]: item["total"] for item in response.context["reason_not_received_breakdown"]}
+        facility_breakdown = {item["facility__name"]: item["total"] for item in response.context["facility_breakdown"]}
+        province_breakdown = {item["facility__province"]: item["total"] for item in response.context["province_breakdown"]}
+
+        self.assertEqual(source_breakdown[Feedback.SubmissionSource.QR_PUBLIC], 2)
+        self.assertEqual(insurance_breakdown[Feedback.INSURANCE.NHIMA], 1)
+        self.assertEqual(change_breakdown[Feedback.CHANGE.MORE_MEDICINES], 1)
+        self.assertEqual(reason_breakdown[Feedback.ReasonNotReceived.MEDICINE], 1)
+        self.assertEqual(facility_breakdown[self.facility_a.name], 2)
+        self.assertEqual(province_breakdown[self.facility_a.province], 2)
+
     def test_dashboard_user_can_open_detail_for_assigned_facility_feedback_only(self):
         visible_feedback = Feedback.objects.filter(facility=self.facility_a).first()
         hidden_feedback = Feedback.objects.filter(facility=self.facility_b).first()
