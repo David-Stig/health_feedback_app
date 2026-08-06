@@ -8,13 +8,27 @@
                 <a class="button-secondary" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
             {% endif %}
 
-            {% for page_number in paginator.page_range %}
+            {% if pagination_window and 1 not in pagination_window %}
+                <a class="pagination-number" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page=1">1</a>
+                {% if pagination_window.0 > 2 %}
+                    <span class="pagination-ellipsis">...</span>
+                {% endif %}
+            {% endif %}
+
+            {% for page_number in pagination_window %}
                 {% if page_number == page_obj.number %}
                     <span class="pagination-number is-active" aria-current="page">{{ page_number }}</span>
                 {% else %}
                     <a class="pagination-number" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_number }}">{{ page_number }}</a>
                 {% endif %}
             {% endfor %}
+
+            {% if pagination_window and paginator.num_pages not in pagination_window %}
+                {% if pagination_window|last < paginator.num_pages|add:"-1" %}
+                    <span class="pagination-ellipsis">...</span>
+                {% endif %}
+                <a class="pagination-number" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ paginator.num_pages }}">{{ paginator.num_pages }}</a>
+            {% endif %}
 
             {% if page_obj.has_next %}
                 <a class="button-secondary" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>

@@ -25,6 +25,25 @@ from .bulk_forms import AssistedCaptureForm, CollectionSessionForm, ImportUpload
 from .mixins import PermissionOrStaffRequiredMixin, accessible_facilities_for_user
 
 
+def build_pagination_window(page_obj, window_size=5):
+    if not page_obj:
+        return []
+
+    total_pages = page_obj.paginator.num_pages
+    if total_pages <= window_size:
+        return list(page_obj.paginator.page_range)
+
+    half_window = window_size // 2
+    start = max(page_obj.number - half_window, 1)
+    end = start + window_size - 1
+
+    if end > total_pages:
+        end = total_pages
+        start = max(end - window_size + 1, 1)
+
+    return list(range(start, end + 1))
+
+
 class FacilityScopedBulkMixin(PermissionOrStaffRequiredMixin):
     def get_accessible_facilities(self):
         return accessible_facilities_for_user(self.request.user)
@@ -72,6 +91,7 @@ class CollectionSessionListView(FacilityScopedBulkMixin, ListView):
         query_params = self.request.GET.copy()
         query_params.pop("page", None)
         context["current_filters"] = query_params.urlencode()
+        context["pagination_window"] = build_pagination_window(context["page_obj"])
         return context
 
 
@@ -339,6 +359,10 @@ class ImportBatchDetailView(FacilityScopedBulkMixin, TemplateView):
             {
                 "batch": self.batch,
                 "page_obj": page_obj,
+                "paginator": paginator,
+                "is_paginated": page_obj.paginator.num_pages > 1,
+                "current_filters": "",
+                "pagination_window": build_pagination_window(page_obj),
                 "row_results": page_obj.object_list,
             }
         )

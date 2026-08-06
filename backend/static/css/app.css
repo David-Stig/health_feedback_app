@@ -868,6 +868,13 @@ input[type="checkbox"] {
     color: #fff;
 }
 
+.pagination-ellipsis {
+    color: var(--muted);
+    padding: 0 0.15rem;
+    align-self: center;
+    font-weight: 700;
+}
+
 .inline-form {
     align-items: center;
     margin-bottom: 1rem;
