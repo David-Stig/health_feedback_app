@@ -1,0 +1,24 @@
+{% if is_paginated %}
+    <div class="action-row pagination-row">
+        <div class="subtle">
+            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ paginator.count }} {{ item_label }}
+        </div>
+        <div class="action-row pagination-links">
+            {% if page_obj.has_previous %}
+                <a class="button-secondary" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+            {% endif %}
+
+            {% for page_number in paginator.page_range %}
+                {% if page_number == page_obj.number %}
+                    <span class="pagination-number is-active" aria-current="page">{{ page_number }}</span>
+                {% else %}
+                    <a class="pagination-number" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_number }}">{{ page_number }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <a class="button-secondary" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}

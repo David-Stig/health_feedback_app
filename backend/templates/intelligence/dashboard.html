@@ -1,0 +1,65 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<section class="section-heading">
+    <div>
+        <p class="eyebrow">Reports</p>
+        <h1>Internal management reports</h1>
+        <p class="subtle">Generate auditable draft reports from feedback data for review before any management action.</p>
+    </div>
+    <a class="button-primary" href="{% url 'intelligence:report_generate' %}">Generate report</a>
+</section>
+
+<section class="stat-grid">
+    <article class="stat-card">
+        <span>Total reports</span>
+        <strong>{{ total_reports }}</strong>
+    </article>
+    <article class="stat-card">
+        <span>Draft reports</span>
+        <strong>{{ draft_reports }}</strong>
+    </article>
+    <article class="stat-card">
+        <span>Approved reports</span>
+        <strong>{{ approved_reports }}</strong>
+    </article>
+</section>
+
+<section class="table-grid">
+    <article class="panel">
+        <h2>Recent reports</h2>
+        <table class="data-table">
+            <thead><tr><th>Code</th><th>Type</th><th>Facility</th><th>Status</th><th>Generated</th></tr></thead>
+            <tbody>
+                {% for report in recent_reports %}
+                    <tr>
+                        <td><a href="{% url 'intelligence:report_detail' report.pk %}">{{ report.report_code }}</a></td>
+                        <td>{{ report.get_report_type_display }}</td>
+                        <td>{{ report.facility.name|default:"All facilities" }}</td>
+                        <td>{{ report.get_status_display }}</td>
+                        <td>{{ report.generated_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">No reports have been generated yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </article>
+    <article class="panel">
+        <h2>Latest insights</h2>
+        <div class="stack">
+            {% for insight in recent_insights %}
+                <div class="info-card">
+                    <strong>{{ insight.title }}</strong>
+                    <p class="subtle">{{ insight.summary }}</p>
+                    <small>{{ insight.report.report_code }} · {{ insight.get_severity_display }} · {{ insight.get_confidence_level_display }} confidence</small>
+                </div>
+            {% empty %}
+                <p>No insights generated yet.</p>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+{% endblock %}

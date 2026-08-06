@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "facilities",
     "feedback",
     "dashboard",
+    "intelligence",
 ]
 
 MIDDLEWARE = [

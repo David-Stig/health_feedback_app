@@ -67,21 +67,6 @@
         </table>
     </div>
 
-    {% if is_paginated %}
-        <div class="action-row pagination-row">
-            <div class="subtle">
-                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ paginator.count }} responses
-            </div>
-            <div class="action-row">
-                {% if page_obj.has_previous %}
-                    <a class="button-secondary" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
-                {% endif %}
-                <span class="pagination-status">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
-                {% if page_obj.has_next %}
-                    <a class="button-secondary" href="?{% if current_filters %}{{ current_filters }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
-                {% endif %}
-            </div>
-        </div>
-    {% endif %}
+    {% include "dashboard/includes/pagination.html" with item_label="responses" %}
 </section>
 {% endblock %}

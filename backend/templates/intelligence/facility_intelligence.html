@@ -1,0 +1,25 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Facility Reports{% endblock %}
+
+{% block content %}
+<section class="section-heading">
+    <div>
+        <p class="eyebrow">Reports</p>
+        <h1>Facility report coverage</h1>
+    </div>
+</section>
+
+<article class="panel">
+    <table class="data-table">
+        <thead><tr><th>Facility</th><th>Reports</th></tr></thead>
+        <tbody>
+            {% for item in facility_reports %}
+                <tr><td>{{ item.facility__name }}</td><td>{{ item.total }}</td></tr>
+            {% empty %}
+                <tr><td colspan="2">No facility reports generated yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</article>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Topic Analysis{% endblock %}
+
+{% block content %}
+<section class="section-heading">
+    <div>
+        <p class="eyebrow">Reports</p>
+        <h1>Topic analysis</h1>
+    </div>
+</section>
+
+<article class="panel">
+    <table class="data-table">
+        <thead><tr><th>Topic</th><th>Count</th><th>Example</th></tr></thead>
+        <tbody>
+            {% for topic in topics %}
+                <tr>
+                    <td>{{ topic.topic }}</td>
+                    <td>{{ topic.count }}</td>
+                    <td>{{ topic.example }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="3">No topic data available yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</article>
+{% endblock %}

@@ -38,26 +38,32 @@
 
 <section class="chart-grid">
     <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-header">
-            <h2>Ratings by category</h2>
-            <p class="chart-summary">{{ total_rating_responses }} rating responses</p>
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2>Ratings by category</h2>
+                <p class="chart-summary">{{ total_rating_responses }} rating responses</p>
+            </div>
         </div>
         <div class="chart-canvas-wrap chart-canvas-wrap--standard">
             <canvas id="categoryChart" aria-label="Ratings by category chart"></canvas>
         </div>
     </article>
     <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-header">
-            <h2>Submissions over time</h2>
-            <p class="chart-summary">{{ total_submissions }} submissions in current view</p>
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2>Submissions over time</h2>
+                <p class="chart-summary">{{ total_submissions }} submissions in current view</p>
+            </div>
         </div>
         <div class="chart-canvas-wrap chart-canvas-wrap--standard">
             <canvas id="trendChart" aria-label="Submissions over time chart"></canvas>
         </div>
     </article>
     <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-header">
-            <h2>Received all services needed</h2>
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2>Received all services needed</h2>
+            </div>
         </div>
         <div class="chart-canvas-wrap chart-canvas-wrap--standard">
             <canvas id="receivedServiceChart" aria-label="Received all services needed chart"></canvas>
@@ -67,24 +73,30 @@
 
 <section class="chart-grid">
     <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-header">
-            <h2>Paid out of pocket</h2>
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2>Paid out of pocket</h2>
+            </div>
         </div>
         <div class="chart-canvas-wrap chart-canvas-wrap--standard">
             <canvas id="paymentChart" aria-label="Paid out of pocket chart"></canvas>
         </div>
     </article>
     <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-header">
-            <h2>Got medicines here</h2>
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2>Medidicines Available</h2>
+            </div>
         </div>
         <div class="chart-canvas-wrap chart-canvas-wrap--standard">
             <canvas id="medicinesChart" aria-label="Got medicines here chart"></canvas>
         </div>
     </article>
     <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-header">
-            <h2>Would come back</h2>
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2>Would Return to Facility</h2>
+            </div>
         </div>
         <div class="chart-canvas-wrap chart-canvas-wrap--standard">
             <canvas id="revisitChart" aria-label="Would come back chart"></canvas>
@@ -94,34 +106,40 @@
 
 <section class="chart-grid">
     <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-header">
-            <h2>Submission sources</h2>
-            <p class="chart-summary">{{ total_submissions }} submissions</p>
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2>Submission sources</h2>
+                <p class="chart-summary">{{ total_submissions }} submissions</p>
+            </div>
         </div>
         <div class="chart-canvas-wrap chart-canvas-wrap--standard">
             <canvas id="sourceChart" aria-label="Submission sources chart"></canvas>
         </div>
     </article>
     <article class="panel chart-panel chart-panel--category" aria-labelledby="insurance-chart-title">
-        <div class="chart-card-header">
-            <h2 id="insurance-chart-title">Insurance used</h2>
-            <p class="chart-summary">{{ insurance_chart_summary }}</p>
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2 id="insurance-chart-title">Insurance used</h2>
+                <p class="chart-summary">{{ insurance_chart_summary }}</p>
+            </div>
+            {% if insurance_chart_note %}
+                <p class="chart-note">{{ insurance_chart_note }}</p>
+            {% endif %}
         </div>
-        {% if insurance_chart_note %}
-            <p class="chart-note">{{ insurance_chart_note }}</p>
-        {% endif %}
         <div class="chart-canvas-wrap chart-canvas-wrap--category">
             <canvas id="insuranceChart" aria-label="Insurance used distribution chart"></canvas>
         </div>
     </article>
     <article class="panel chart-panel chart-panel--category" aria-labelledby="change-chart-title">
-        <div class="chart-card-header">
-            <h2 id="change-chart-title">Suggested top change</h2>
-            <p class="chart-summary">{{ change_chart_summary }}</p>
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2 id="change-chart-title">Suggested top change</h2>
+                <p class="chart-summary">{{ change_chart_summary }}</p>
+            </div>
+            {% if change_chart_note %}
+                <p class="chart-note">{{ change_chart_note }}</p>
+            {% endif %}
         </div>
-        {% if change_chart_note %}
-            <p class="chart-note">{{ change_chart_note }}</p>
-        {% endif %}
         <div class="chart-canvas-wrap chart-canvas-wrap--category">
             <canvas id="changeChart" aria-label="Suggested top change distribution chart"></canvas>
         </div>
@@ -252,6 +270,32 @@
         return new Chart(canvas, config);
     }
 
+    const circularChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: {
+            padding: {
+                top: 0,
+                right: 8,
+                bottom: 8,
+                left: 8
+            }
+        },
+        plugins: {
+            legend: {
+                position: "top",
+                labels: {
+                    boxWidth: 18,
+                    boxHeight: 10,
+                    padding: 6,
+                    font: {
+                        size: 11
+                    }
+                }
+            }
+        }
+    };
+
     function createHorizontalCategoryChart(options) {
         const canvas = document.getElementById(options.canvasId);
         if (!canvas) {
@@ -352,6 +396,9 @@
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
+                legend: {
+                    display: false
+                },
                 tooltip: {
                     callbacks: {
                         title(tooltipItems) {
@@ -375,6 +422,20 @@
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: 0
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: "top",
+                    labels: {
+                        padding: 6
+                    }
+                }
+            },
             scales: {
                 y: { beginAtZero: true, position: "left" },
                 y1: { beginAtZero: true, position: "right", min: 0, max: 5, grid: { drawOnChartArea: false } }
@@ -388,10 +449,7 @@
             labels: receivedServiceLabels,
             datasets: [{ data: receivedServiceTotals, backgroundColor: palette }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false
-        }
+        options: circularChartOptions
     });
 
     createStandardChart("paymentChart", {
@@ -400,10 +458,7 @@
             labels: paymentLabels,
             datasets: [{ data: paymentTotals, backgroundColor: palette }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false
-        }
+        options: circularChartOptions
     });
 
     createStandardChart("sourceChart", {
@@ -412,10 +467,7 @@
             labels: sourceLabels,
             datasets: [{ data: sourceTotals, backgroundColor: palette }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false
-        }
+        options: circularChartOptions
     });
 
     createStandardChart("medicinesChart", {
@@ -424,10 +476,7 @@
             labels: medicinesLabels,
             datasets: [{ data: medicinesTotals, backgroundColor: palette }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false
-        }
+        options: circularChartOptions
     });
 
     createStandardChart("revisitChart", {
@@ -436,10 +485,7 @@
             labels: revisitLabels,
             datasets: [{ data: revisitTotals, backgroundColor: palette }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false
-        }
+        options: circularChartOptions
     });
 
     createHorizontalCategoryChart({

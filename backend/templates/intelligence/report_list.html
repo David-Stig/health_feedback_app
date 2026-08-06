@@ -1,0 +1,33 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<section class="section-heading">
+    <div>
+        <p class="eyebrow">Reports</p>
+        <h1>{{ report_type_label }}</h1>
+    </div>
+    <a class="button-primary" href="{% url 'intelligence:report_generate' %}">Generate report</a>
+</section>
+
+<article class="panel">
+    <table class="data-table">
+        <thead><tr><th>Code</th><th>Title</th><th>Status</th><th>Version</th><th>Facility</th><th>Generated</th></tr></thead>
+        <tbody>
+            {% for report in reports %}
+                <tr>
+                    <td><a href="{% url 'intelligence:report_detail' report.pk %}">{{ report.report_code }}</a></td>
+                    <td>{{ report.title }}</td>
+                    <td>{{ report.get_status_display }}</td>
+                    <td>{{ report.version }}</td>
+                    <td>{{ report.facility.name|default:"All facilities" }}</td>
+                    <td>{{ report.generated_at|date:"Y-m-d H:i" }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6">No reports found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</article>
+{% endblock %}

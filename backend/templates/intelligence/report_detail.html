@@ -1,0 +1,215 @@
+{% extends "admin_base.html" %}
+
+{% block title %}{{ report.report_code }}{% endblock %}
+
+{% block content %}
+<section class="section-heading">
+    <div>
+        <p class="eyebrow">Reports</p>
+        <h1>{{ report.title }}</h1>
+        <p class="subtle">{{ report.report_code }} · {{ report.get_status_display }} · Version {{ report.version }}</p>
+    </div>
+    <div class="button-row">
+        <a href="{% url 'intelligence:report_download_pdf' report.pk %}" class="button-secondary">Download PDF</a>
+        {% if report.status == "draft" %}
+            <form method="post" action="{% url 'intelligence:report_regenerate' report.pk %}">{% csrf_token %}<button class="button-secondary" type="submit">Regenerate</button></form>
+            <form method="post" action="{% url 'intelligence:report_status' report.pk 'under-review' %}">{% csrf_token %}<button class="button-primary" type="submit">Move to review</button></form>
+        {% elif report.status == "under_review" %}
+            <form method="post" action="{% url 'intelligence:report_status' report.pk 'approve' %}">{% csrf_token %}<button class="button-primary" type="submit">Approve</button></form>
+        {% endif %}
+    </div>
+</section>
+
+<section class="detail-grid">
+    <article class="info-card">
+        <span class="eyebrow">Period</span>
+        <strong>{{ report.period_start }} to {{ report.period_end }}</strong>
+    </article>
+    <article class="info-card">
+        <span class="eyebrow">Comparison</span>
+        <strong>{{ report.comparison_start|default:"-" }} to {{ report.comparison_end|default:"-" }}</strong>
+    </article>
+    <article class="info-card">
+        <span class="eyebrow">Facility</span>
+        <strong>{{ report.facility.name|default:"All facilities" }}</strong>
+    </article>
+    <article class="info-card">
+        <span class="eyebrow">Generated</span>
+        <strong>{{ report.generated_at|date:"Y-m-d H:i" }}</strong>
+    </article>
+</section>
+
+<article class="panel">
+    <h2>Executive summary</h2>
+    <p>{{ report.executive_summary }}</p>
+</article>
+
+<section class="chart-grid">
+    <article class="panel chart-panel chart-panel--standard">
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2>Ratings by category</h2>
+                <p class="chart-summary">Average rating captured for this report period.</p>
+            </div>
+        </div>
+        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
+            <canvas id="reportRatingChart" aria-label="Report ratings by category chart"></canvas>
+        </div>
+    </article>
+    <article class="panel chart-panel chart-panel--standard">
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2>Suggested top changes</h2>
+                <p class="chart-summary">Most selected structured improvement requests.</p>
+            </div>
+        </div>
+        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
+            <canvas id="reportChangeChart" aria-label="Report top changes chart"></canvas>
+        </div>
+    </article>
+    <article class="panel chart-panel chart-panel--standard">
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2>Free-text topics</h2>
+                <p class="chart-summary">Most common topics extracted from comments.</p>
+            </div>
+        </div>
+        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
+            <canvas id="reportTopicChart" aria-label="Report free-text topics chart"></canvas>
+        </div>
+    </article>
+</section>
+
+{% if report_facility_labels %}
+<section class="chart-grid">
+    <article class="panel chart-panel chart-panel--standard">
+        <div class="chart-card-intro">
+            <div class="chart-card-header">
+                <h2>Facility submission volume</h2>
+                <p class="chart-summary">Facilities contributing most feedback in this report.</p>
+            </div>
+        </div>
+        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
+            <canvas id="reportFacilityChart" aria-label="Report facility submission volume chart"></canvas>
+        </div>
+    </article>
+</section>
+{% endif %}
+
+<article class="panel">
+    <h2>Management comments</h2>
+    <form method="post" class="stacked-form">
+        {% csrf_token %}
+        {{ comment_form.as_p }}
+        <button type="submit" class="button-primary">Save comments</button>
+    </form>
+</article>
+
+<article class="panel">
+    <h2>Insights</h2>
+    <div class="stack">
+        {% for insight in insights %}
+            <div class="info-card">
+                <strong>{{ insight.title }}</strong>
+                <p>{{ insight.summary }}</p>
+                <small>{{ insight.get_severity_display }} · {{ insight.get_confidence_level_display }} confidence · Sample {{ insight.sample_size }}</small>
+            </div>
+        {% empty %}
+            <p>No insights were generated for this report.</p>
+        {% endfor %}
+    </div>
+</article>
+
+<article class="panel">
+    <h2>Version history</h2>
+    <table class="data-table">
+        <thead><tr><th>Version</th><th>Generated at</th><th>Generated by</th></tr></thead>
+        <tbody>
+            {% for version in report.versions.all %}
+                <tr>
+                    <td>{{ version.version }}</td>
+                    <td>{{ version.generated_at|date:"Y-m-d H:i" }}</td>
+                    <td>{{ version.generated_by.username|default:"System" }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</article>
+
+{{ report_rating_labels|json_script:"report-rating-labels" }}
+{{ report_rating_full_labels|json_script:"report-rating-full-labels" }}
+{{ report_rating_values|json_script:"report-rating-values" }}
+{{ report_change_labels|json_script:"report-change-labels" }}
+{{ report_change_full_labels|json_script:"report-change-full-labels" }}
+{{ report_change_values|json_script:"report-change-values" }}
+{{ report_topic_labels|json_script:"report-topic-labels" }}
+{{ report_topic_values|json_script:"report-topic-values" }}
+{{ report_facility_labels|json_script:"report-facility-labels" }}
+{{ report_facility_values|json_script:"report-facility-values" }}
+<script>
+    const reportRatingLabels = JSON.parse(document.getElementById("report-rating-labels").textContent);
+    const reportRatingFullLabels = JSON.parse(document.getElementById("report-rating-full-labels").textContent);
+    const reportRatingValues = JSON.parse(document.getElementById("report-rating-values").textContent);
+    const reportChangeLabels = JSON.parse(document.getElementById("report-change-labels").textContent);
+    const reportChangeFullLabels = JSON.parse(document.getElementById("report-change-full-labels").textContent);
+    const reportChangeValues = JSON.parse(document.getElementById("report-change-values").textContent);
+    const reportTopicLabels = JSON.parse(document.getElementById("report-topic-labels").textContent);
+    const reportTopicValues = JSON.parse(document.getElementById("report-topic-values").textContent);
+    const reportFacilityLabels = JSON.parse(document.getElementById("report-facility-labels").textContent);
+    const reportFacilityValues = JSON.parse(document.getElementById("report-facility-values").textContent);
+
+    function createReportBarChart(canvasId, labels, values, color, horizontal = false, fullLabels = []) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || !labels.length || !values.length) {
+            return;
+        }
+        new Chart(canvas, {
+            type: "bar",
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: color,
+                    borderWidth: 0,
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                indexAxis: horizontal ? "y" : "x",
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title(tooltipItems) {
+                                const index = tooltipItems[0].dataIndex;
+                                return fullLabels[index] || tooltipItems[0].label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: horizontal ? {
+                        ticks: { autoSkip: false }
+                    } : {
+                        beginAtZero: true
+                    },
+                    x: horizontal ? {
+                        beginAtZero: true
+                    } : {
+                        ticks: { autoSkip: false }
+                    }
+                }
+            }
+        });
+    }
+
+    createReportBarChart("reportRatingChart", reportRatingLabels, reportRatingValues, "#14746f", false, reportRatingFullLabels);
+    createReportBarChart("reportChangeChart", reportChangeLabels, reportChangeValues, "#f0b429", true, reportChangeFullLabels);
+    createReportBarChart("reportTopicChart", reportTopicLabels, reportTopicValues, "#2c7da0", true);
+    createReportBarChart("reportFacilityChart", reportFacilityLabels, reportFacilityValues, "#0f4c5c", true);
+</script>
+{% endblock %}

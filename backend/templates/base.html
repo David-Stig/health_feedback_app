@@ -10,10 +10,12 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
     <header class="site-header">
-        <div class="container header-shell">
-            <a class="brand">Health Facility Feedback System</a>
-            {% block header_nav %}{% endblock %}
-        </div>
+        {% block site_header %}
+            <div class="container header-shell">
+                <a class="brand">Health Facility Feedback System</a>
+                {% block header_nav %}{% endblock %}
+            </div>
+        {% endblock %}
     </header>
 
     <main class="container page-shell {% block page_class %}{% endblock %}">
@@ -47,6 +49,14 @@
                     nav.classList.remove("is-open");
                     toggle.setAttribute("aria-expanded", "false");
                     document.body.classList.remove("nav-open");
+                });
+            });
+
+            document.addEventListener("click", function (event) {
+                document.querySelectorAll(".profile-menu[open]").forEach(function (menu) {
+                    if (!menu.contains(event.target)) {
+                        menu.removeAttribute("open");
+                    }
                 });
             });
         });

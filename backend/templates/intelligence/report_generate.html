@@ -1,0 +1,23 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Generate Report{% endblock %}
+
+{% block content %}
+<section class="section-heading">
+    <div>
+        <p class="eyebrow">Reports</p>
+        <h1>Generate report</h1>
+    </div>
+</section>
+
+<article class="panel">
+    <form method="post" class="stacked-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="form-actions action-row">
+            <button type="submit" class="button-primary">Generate draft report</button>
+            <a href="{% url 'intelligence:dashboard' %}" class="button-secondary">Cancel</a>
+        </div>
+    </form>
+</article>
+{% endblock %}

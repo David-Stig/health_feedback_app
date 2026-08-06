@@ -1,31 +1,65 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block header_nav %}
-<div class="site-nav-shell">
-    <button
-        type="button"
-        class="nav-toggle"
-        aria-expanded="false"
-        aria-controls="site-nav"
-        aria-label="Open navigation menu"
-    >
-        <span></span>
-        <span></span>
-        <span></span>
-    </button>
-    <nav class="site-nav" id="site-nav">
-        <a href="{% url 'dashboard:home' %}">Dashboard</a>
-        <a href="{% url 'dashboard:facility_list' %}">Facilities</a>
-        <a href="{% url 'dashboard:feedback_list' %}">Submissions</a>
-        <a href="{% url 'dashboard:bulk_session_list' %}">Collection sessions</a>
-        {% if request.user.is_staff %}
-            <a href="{% url 'dashboard:user_list' %}">Users</a>
-        {% endif %}
-        <a href="{% url 'dashboard:account' %}">My account</a>
-        <form action="{% url 'logout' %}" method="post">
-            {% csrf_token %}
-            <button type="submit" class="link-button">Sign out</button>
-        </form>
-    </nav>
+{% block site_header %}
+<div class="container admin-header-shell">
+    <a href="{% url 'dashboard:home' %}" class="brand brand--logo" aria-label="CRHE dashboard home">
+        <img src="{% static 'images/CRHE_logo.png' %}" alt="CRHE logo" class="brand-logo">
+    </a>
+
+    <div class="site-nav-shell site-nav-shell--centered">
+        <button
+            type="button"
+            class="nav-toggle"
+            aria-expanded="false"
+            aria-controls="site-nav"
+            aria-label="Open navigation menu"
+        >
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <nav class="site-nav" id="site-nav">
+            <a href="{% url 'dashboard:home' %}" class="{% if request.resolver_match.url_name == 'home' %}is-active{% endif %}">Dashboard</a>
+            <a href="{% url 'dashboard:facility_list' %}" class="{% if request.resolver_match.url_name == 'facility_list' or request.resolver_match.url_name == 'facility_create' or request.resolver_match.url_name == 'facility_update' or request.resolver_match.url_name == 'facility_detail' or request.resolver_match.url_name == 'facility_delete' or request.resolver_match.url_name == 'facility_bulk_upload' %}is-active{% endif %}">Facilities</a>
+            <a href="{% url 'dashboard:feedback_list' %}" class="{% if request.resolver_match.url_name == 'feedback_list' or request.resolver_match.url_name == 'feedback_detail' %}is-active{% endif %}">Submissions</a>
+            <a href="{% url 'dashboard:bulk_session_list' %}" class="{% if request.resolver_match.url_name == 'bulk_session_list' or request.resolver_match.url_name == 'bulk_session_create' or request.resolver_match.url_name == 'bulk_session_detail' or request.resolver_match.url_name == 'bulk_session_capture' or request.resolver_match.url_name == 'bulk_session_delete' or request.resolver_match.url_name == 'bulk_session_status' or request.resolver_match.url_name == 'bulk_session_start' %}is-active{% endif %}">Collection sessions</a>
+            <details class="nav-dropdown {% if request.resolver_match.namespace == 'intelligence' %}is-active{% endif %}">
+                <summary>Reports</summary>
+                <div class="nav-dropdown-menu">
+                    <a href="{% url 'intelligence:dashboard' %}">Reports dashboard</a>
+                    <a href="{% url 'intelligence:weekly_reports' %}">Weekly reports</a>
+                    <a href="{% url 'intelligence:monthly_reports' %}">Monthly reports</a>
+                    <a href="{% url 'intelligence:custom_reports' %}">Custom reports</a>
+                    <a href="{% url 'intelligence:facility_intelligence' %}">Facility reports</a>
+                    <a href="{% url 'intelligence:emerging_issues' %}">Emerging issues</a>
+                    <a href="{% url 'intelligence:recurring_issues' %}">Recurring issues</a>
+                    <a href="{% url 'intelligence:topic_analysis' %}">Topic analysis</a>
+                    <a href="{% url 'intelligence:candidate_topics' %}">Candidate topics</a>
+                    <a href="{% url 'intelligence:configuration' %}">Configuration</a>
+                </div>
+            </details>
+            {% if request.user.is_staff %}
+                <a href="{% url 'dashboard:user_list' %}" class="{% if request.resolver_match.url_name == 'user_list' or request.resolver_match.url_name == 'user_create' or request.resolver_match.url_name == 'user_update' or request.resolver_match.url_name == 'user_password_reset' or request.resolver_match.url_name == 'user_delete' %}is-active{% endif %}">Users</a>
+            {% endif %}
+        </nav>
+    </div>
+
+    <details class="profile-menu">
+        <summary class="profile-trigger" aria-label="Open profile menu">
+            <span class="profile-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                    <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5Z"></path>
+                </svg>
+            </span>
+        </summary>
+        <div class="nav-dropdown-menu profile-menu-panel">
+            <a href="{% url 'dashboard:account' %}">My account</a>
+            <form action="{% url 'logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="link-button profile-menu-link">Logout</button>
+            </form>
+        </div>
+    </details>
 </div>
 {% endblock %}

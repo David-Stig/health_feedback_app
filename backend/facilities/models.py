@@ -21,10 +21,7 @@ class Facility(models.Model):
         return f"{self.name} ({self.district})"
 
     def get_feedback_slug(self) -> str:
-        base_slug = slugify(self.name) or "facility"
-        if not self.pk:
-            return base_slug
-        return f"{base_slug}-{self.pk}"
+        return slugify(self.name) or "facility"
 
     def _normalized_site_url(self) -> str:
         raw_site_url = (getattr(settings, "SITE_URL", "") or "").strip()

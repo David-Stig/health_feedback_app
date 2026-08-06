@@ -24,6 +24,7 @@ urlpatterns = [
     path('feedback/<int:facility_id>/', feedback_views.submit_feedback_legacy, name='feedback_direct_submit'),
     path('feedback/', include('feedback.urls')),
     path('dashboard/', include('dashboard.urls')),
+    path('intelligence/', include('intelligence.urls')),
     path('facilities/', include('facilities.urls')),
 ]
 
