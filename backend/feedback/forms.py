@@ -1,10 +1,16 @@
 from django import forms
 from facilities.models import Facility
 from .models import Feedback
+from .consent import CONSENT_CHECKBOX_LABEL, CONSENT_VALIDATION_MESSAGE
 
 
 class FeedbackForm(forms.ModelForm):
     medicine = forms.CharField(required=False, widget=forms.HiddenInput)
+    consent_acknowledged = forms.BooleanField(
+        required=True,
+        label=CONSENT_CHECKBOX_LABEL,
+        error_messages={"required": CONSENT_VALIDATION_MESSAGE},
+    )
     difficulty = forms.MultipleChoiceField(
         choices=Feedback.Difficulty.choices,
         widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check"}),
@@ -71,6 +77,12 @@ class FeedbackForm(forms.ModelForm):
         self.fields["gender"].required = True
         self.fields["comment"].required = False
         self.fields["facility"].empty_label = None
+        self.fields["consent_acknowledged"].widget.attrs.update(
+            {
+                "class": "consent-checkbox-input",
+                "aria-required": "true",
+            }
+        )
         self.fields["distance"].required = True
         self.fields["change"].required = True
         self.fields["change_other"].required = False
@@ -110,6 +122,12 @@ class FeedbackForm(forms.ModelForm):
         if isinstance(difficulty, str):
             return [difficulty] if difficulty else []
         return difficulty or []
+
+    def clean_consent_acknowledged(self):
+        value = self.cleaned_data.get("consent_acknowledged")
+        if not value:
+            raise forms.ValidationError(CONSENT_VALIDATION_MESSAGE)
+        return value
 
     def clean(self):
         cleaned_data = super().clean()

@@ -4,6 +4,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 
 from facilities.models import Facility
+from .consent import get_consent_content
 from .forms import FeedbackForm
 from .models import Feedback
 from .rate_limit import check_submission_rate
@@ -11,6 +12,15 @@ from .submission_service import create_feedback_entries_from_cleaned_data
 from .turnstile import verify_turnstile
 
 FEEDBACK_FACILITY_SESSION_KEY = "feedback_facility_id"
+
+
+def _build_rating_state(request, categories):
+    rating_values = {}
+    rating_comments = {}
+    for category_value, _category_label in categories:
+        rating_values[category_value] = request.POST.get(f"rating_{category_value}", "")
+        rating_comments[category_value] = request.POST.get(f"comment_{category_value}", "")
+    return rating_values, rating_comments
 
 
 def _get_selected_facility(form):
@@ -47,6 +57,9 @@ def _resolve_facility_id(request, facility_id=None):
 
 def submit_feedback(request, facility_slug=None, facility_id=None):
     categories = Feedback.Category.choices
+    consent_content = get_consent_content()
+    rating_values = {}
+    rating_comments = {}
 
     facility_id = _resolve_facility_id(request, facility_id=facility_id)
 
@@ -55,6 +68,7 @@ def submit_feedback(request, facility_slug=None, facility_id=None):
         if facility_id:
             post_data["facility"] = str(facility_id)
         form = FeedbackForm(post_data, facility_id=facility_id)
+        rating_values, rating_comments = _build_rating_state(request, categories)
 
         if form.is_valid():
             turnstile_passed, turnstile_error = verify_turnstile(request)
@@ -84,6 +98,8 @@ def submit_feedback(request, facility_slug=None, facility_id=None):
                         ratings=ratings,
                         comments=comments,
                         submission_source=Feedback.SubmissionSource.QR_PUBLIC,
+                        consent_acknowledged=True,
+                        consent_version=consent_content["version"],
                     )
 
                     request.session[FEEDBACK_FACILITY_SESSION_KEY] = str(facility.pk)
@@ -96,6 +112,9 @@ def submit_feedback(request, facility_slug=None, facility_id=None):
         "form": form,
         "categories": categories,
         "selected_facility": _get_selected_facility(form),
+        "consent_content": consent_content,
+        "rating_values": rating_values,
+        "rating_comments": rating_comments,
         "turnstile_enabled": settings.TURNSTILE_ENABLED,
         "turnstile_site_key": settings.TURNSTILE_SITE_KEY,
     }

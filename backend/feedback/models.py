@@ -214,7 +214,7 @@ class Feedback(models.Model):
         
     #SECTION A: ABOUT YOUR VISIT 
     class AgeGroup(models.TextChoices):
-        AGE_15_24 = "15-24 years", "15-24 years"
+        AGE_18_24 = "18-24 years", "18-24 years"
         AGE_25_34 = "25-34 years", "25-34 years"
         AGE_35_49 = "35-49 years", "35-49 years"
         AGE_50_64 = "50-64 years", "50-64 years"
@@ -291,6 +291,7 @@ class Feedback(models.Model):
         FACILITY = "I have NHIMA, but the facility did not accept it", "I have NHIMA, but the facility did not accept it"
         PRIVATE_FACILITY = "I have private insurance, but this health post does not accept it ", "I have private insurance, but this health post does not accept it "
         DID_NOT_HAVE = "My insurance does not cover the services I needed today", "My insurance does not cover the services I needed today"
+        NOT_NEEDED = "I have health insurance, but I did not need to use it", "I have health insurance, but I did not need to use it"
         CASH = "I chose to pay out-of-pocket instead", "I chose to pay out-of-pocket instead"
         NOT_SURE = "Not sure", "Not sure"
         OTHER = "Other", "Other"
@@ -383,6 +384,8 @@ class Feedback(models.Model):
     )
     submitted_on = models.DateField(null=True, blank=True, db_index=True)
     fingerprint = models.CharField(max_length=64, blank=True, db_index=True)
+    consent_acknowledged = models.BooleanField(null=True, blank=True, default=None)
+    consent_version = models.CharField(max_length=20, null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
     rolled_back_at = models.DateTimeField(null=True, blank=True)
     rating = models.PositiveSmallIntegerField(

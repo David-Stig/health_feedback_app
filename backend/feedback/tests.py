@@ -2,10 +2,13 @@ import tempfile
 from unittest.mock import patch
 
 from django.core.cache import cache
+from django.db import connection
+from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from facilities.models import Facility
+from feedback.consent import CONSENT_VERSION
 from feedback.models import Feedback, RatingResponse
 
 
@@ -43,6 +46,7 @@ class FeedbackSubmissionTests(TestCase):
     def _valid_payload(self):
         return {
             "facility": str(self.facility.pk),
+            "consent_acknowledged": "on",
             "gender": Feedback.Gender.FEMALE,
             "age_group": Feedback.AgeGroup.AGE_25_34,
             "distance": Feedback.Distance.LESS_THAN_5KM,
@@ -81,6 +85,8 @@ class FeedbackSubmissionTests(TestCase):
         self.assertEqual(entry.difficulty, [Feedback.Difficulty.NONE])
         self.assertEqual(entry.payment, Feedback.Payment.NO)
         self.assertEqual(entry.rating_response_count, 2)
+        self.assertIs(entry.consent_acknowledged, True)
+        self.assertEqual(entry.consent_version, CONSENT_VERSION)
         self.assertTrue(
             entry.rating_responses.filter(
                 category=Feedback.Category.WAITING_TIME,
@@ -109,6 +115,46 @@ class FeedbackSubmissionTests(TestCase):
         self.assertIn("medicine", response.context["form"].errors)
         self.assertIn("Spam detected.", response.context["form"].errors["medicine"])
         self.assertEqual(Feedback.objects.count(), 0)
+
+    def test_submission_without_consent_is_rejected(self):
+        payload = self._valid_payload()
+        payload.pop("consent_acknowledged", None)
+
+        response = self.client.post(self.facility_url, data=payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("consent_acknowledged", response.context["form"].errors)
+        self.assertContains(
+            response,
+            "Please confirm that you agree to participate before submitting your feedback.",
+        )
+        self.assertEqual(Feedback.objects.count(), 0)
+        self.assertEqual(RatingResponse.objects.count(), 0)
+
+    @patch("feedback.views.verify_turnstile", return_value=(True, None))
+    def test_backend_bypass_without_consent_is_rejected_before_turnstile(self, mocked_verify_turnstile):
+        payload = self._valid_payload()
+        payload.pop("consent_acknowledged", None)
+
+        response = self.client.post(self.facility_url, data=payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("consent_acknowledged", response.context["form"].errors)
+        self.assertEqual(Feedback.objects.count(), 0)
+        self.assertEqual(RatingResponse.objects.count(), 0)
+        mocked_verify_turnstile.assert_not_called()
+
+    def test_invalid_questionnaire_with_consent_preserves_submission_block(self):
+        payload = self._valid_payload()
+        payload["received_service"] = Feedback.receivedService.NO
+        payload["reason_not_received"] = ""
+
+        response = self.client.post(self.facility_url, data=payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("reason_not_received", response.context["form"].errors)
+        self.assertEqual(Feedback.objects.count(), 0)
+        self.assertEqual(RatingResponse.objects.count(), 0)
 
     def test_submit_another_response_keeps_same_facility_locked(self):
         self.client.post(self.facility_url, data=self._valid_payload())
@@ -187,3 +233,68 @@ class FeedbackSubmissionTests(TestCase):
         self.assertEqual(Feedback.objects.count(), 1)
         self.assertEqual(RatingResponse.objects.count(), 2)
         mocked_verify_turnstile.assert_called_once()
+
+    def test_historical_feedback_defaults_to_unknown_consent_status(self):
+        entry = Feedback.objects.create(facility=self.facility)
+
+        self.assertIsNone(entry.consent_acknowledged)
+        self.assertIsNone(entry.consent_version)
+
+    def test_public_form_shows_18_24_and_not_15_24(self):
+        response = self.client.get(self.facility_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "18-24 years")
+        self.assertNotContains(response, "15-24 years")
+
+    def test_public_form_shows_new_no_insurance_reason_option_in_correct_order(self):
+        response = self.client.get(self.facility_url)
+
+        self.assertEqual(response.status_code, 200)
+        choices = [value for value, _label in response.context["form"].fields["no_insurance_reason"].choices]
+        new_option = Feedback.NO_INSURANCE_REASON.NOT_NEEDED
+        previous_option = Feedback.NO_INSURANCE_REASON.DID_NOT_HAVE
+        next_option = Feedback.NO_INSURANCE_REASON.CASH
+        self.assertIn(new_option, choices)
+        self.assertLess(choices.index(previous_option), choices.index(new_option))
+        self.assertLess(choices.index(new_option), choices.index(next_option))
+        self.assertEqual(choices.count(new_option), 1)
+
+    def test_submission_accepts_new_no_insurance_reason_option(self):
+        payload = self._valid_payload()
+        payload["insurance"] = Feedback.INSURANCE.NONE
+        payload["no_insurance_reason"] = Feedback.NO_INSURANCE_REASON.NOT_NEEDED
+
+        response = self.client.post(self.facility_url, data=payload)
+
+        self.assertRedirects(response, reverse("feedback:thank_you"))
+        entry = Feedback.objects.get()
+        self.assertEqual(entry.no_insurance_reason, Feedback.NO_INSURANCE_REASON.NOT_NEEDED)
+        self.assertEqual(entry.no_insurance_reason_other, "")
+
+
+class AgeGroupMigrationTests(TestCase):
+    migrate_from = [("feedback", "0017_feedback_consent_acknowledged_and_more")]
+    migrate_to = [("feedback", "0018_update_age_group_15_24_to_18_24")]
+
+    def setUp(self):
+        super().setUp()
+        self.executor = MigrationExecutor(connection)
+        self.executor.migrate(self.migrate_from)
+        old_apps = self.executor.loader.project_state(self.migrate_from).apps
+        Facility = old_apps.get_model("facilities", "Facility")
+        Feedback = old_apps.get_model("feedback", "Feedback")
+        facility = Facility.objects.create(name="Legacy Facility", district="Lusaka", province="Lusaka")
+        Feedback.objects.create(
+            facility_id=facility.pk,
+            age_group="15-24 years",
+            submitted_on="2026-08-19",
+        )
+        self.executor = MigrationExecutor(connection)
+        self.executor.migrate(self.migrate_to)
+
+    def test_historical_15_24_rows_are_migrated_to_18_24(self):
+        Feedback = self.executor.loader.project_state(self.migrate_to).apps.get_model("feedback", "Feedback")
+
+        self.assertEqual(Feedback.objects.filter(age_group="15-24 years").count(), 0)
+        self.assertEqual(Feedback.objects.filter(age_group="18-24 years").count(), 1)

@@ -16,8 +16,10 @@ def create_feedback_entries_from_cleaned_data(
     captured_by=None,
     submitted_on=None,
     fingerprint: str = "",
+    consent_acknowledged=None,
+    consent_version=None,
 ):
-    excluded_fields = {"facility", "comment", "medicine"}
+    excluded_fields = {"facility", "comment", "medicine", "consent_acknowledged"}
     submission_data = {
         field_name: value
         for field_name, value in cleaned_data.items()
@@ -49,6 +51,8 @@ def create_feedback_entries_from_cleaned_data(
             captured_by=captured_by,
             submitted_on=effective_submitted_on,
             fingerprint=fingerprint,
+            consent_acknowledged=consent_acknowledged,
+            consent_version=consent_version,
             **submission_data,
         )
         RatingResponse.objects.bulk_create(

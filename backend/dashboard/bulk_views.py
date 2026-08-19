@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, DetailView, FormView, ListView, TemplateView, View
 
 from feedback.audit import log_bulk_event
+from feedback.consent import get_consent_content
 from feedback.import_tools import (
     build_error_report_workbook,
     import_validated_batch,
@@ -219,6 +220,7 @@ class AssistedCaptureView(FacilityScopedBulkMixin, FormView):
         return kwargs
 
     def form_valid(self, form):
+        consent_content = get_consent_content()
         ratings = {}
         comments = {}
         for category_value, _label in Feedback.Category.choices:
@@ -241,6 +243,8 @@ class AssistedCaptureView(FacilityScopedBulkMixin, FormView):
             collection_session=self.session,
             captured_by=self.request.user,
             submitted_on=timezone.localdate(),
+            consent_acknowledged=True,
+            consent_version=consent_content["version"],
         )
         log_bulk_event(
             "assisted_response_captured",
@@ -266,6 +270,15 @@ class AssistedCaptureView(FacilityScopedBulkMixin, FormView):
         context["session"] = self.session
         context["response_count"] = self.session.feedback_entries.filter(is_active=True).count()
         context["categories"] = Feedback.Category.choices
+        context["consent_content"] = get_consent_content()
+        context["rating_values"] = {
+            category_value: self.request.POST.get(f"rating_{category_value}", "")
+            for category_value, _label in Feedback.Category.choices
+        }
+        context["rating_comments"] = {
+            category_value: self.request.POST.get(f"comment_{category_value}", "")
+            for category_value, _label in Feedback.Category.choices
+        }
         return context
 
 

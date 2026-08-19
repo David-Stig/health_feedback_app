@@ -1,4 +1,5 @@
 {% extends "admin_base.html" %}
+{% load feedback_extras %}
 {% block title %}Assisted Capture{% endblock %}
 
 {% block content %}
@@ -30,6 +31,26 @@
         {% if form.facility.errors %}
             <div class="message error">{{ form.facility.errors }}</div>
         {% endif %}
+        <section
+            id="consent-section"
+            class="consent-card{% if form.consent_acknowledged.errors %} consent-card--error{% endif %}"
+            aria-labelledby="consent-heading"
+            aria-describedby="consent-text"
+        >
+            <h3 id="consent-heading">{{ consent_content.heading }}</h3>
+            <p id="consent-text" class="consent-card__text">{{ consent_content.text }}</p>
+            <div class="consent-checkbox-row">
+                {{ form.consent_acknowledged }}
+                <label for="{{ form.consent_acknowledged.id_for_label }}" class="consent-checkbox-label">
+                    {{ consent_content.checkbox_label }}
+                </label>
+            </div>
+            {% if form.consent_acknowledged.errors %}
+                <div class="field-error" id="consent-error" role="alert">
+                    {{ form.consent_acknowledged.errors|join:", " }}
+                </div>
+            {% endif %}
+        </section>
         <fieldset class="service-ratings-fieldset">
             <legend>SECTION A: RESPONDENT & VISIT DETAILS</legend>
             <div class="grid-two">
@@ -174,25 +195,25 @@
                     <div class="rating-section">
                         <div class="category-name">{{ category_label }}</div>
                         <div class="star-rating">
-                            <input type="radio" id="assisted_{{ forloop.counter }}_5" name="rating_{{ category_value }}" value="5">
+                            <input type="radio" id="assisted_{{ forloop.counter }}_5" name="rating_{{ category_value }}" value="5" {% if rating_values|get_item:category_value == "5" %}checked{% endif %}>
                             <label for="assisted_{{ forloop.counter }}_5" title="5 stars">&#9733;</label>
 
-                            <input type="radio" id="assisted_{{ forloop.counter }}_4" name="rating_{{ category_value }}" value="4">
+                            <input type="radio" id="assisted_{{ forloop.counter }}_4" name="rating_{{ category_value }}" value="4" {% if rating_values|get_item:category_value == "4" %}checked{% endif %}>
                             <label for="assisted_{{ forloop.counter }}_4" title="4 stars">&#9733;</label>
 
-                            <input type="radio" id="assisted_{{ forloop.counter }}_3" name="rating_{{ category_value }}" value="3">
+                            <input type="radio" id="assisted_{{ forloop.counter }}_3" name="rating_{{ category_value }}" value="3" {% if rating_values|get_item:category_value == "3" %}checked{% endif %}>
                             <label for="assisted_{{ forloop.counter }}_3" title="3 stars">&#9733;</label>
 
-                            <input type="radio" id="assisted_{{ forloop.counter }}_2" name="rating_{{ category_value }}" value="2">
+                            <input type="radio" id="assisted_{{ forloop.counter }}_2" name="rating_{{ category_value }}" value="2" {% if rating_values|get_item:category_value == "2" %}checked{% endif %}>
                             <label for="assisted_{{ forloop.counter }}_2" title="2 stars">&#9733;</label>
 
-                            <input type="radio" id="assisted_{{ forloop.counter }}_1" name="rating_{{ category_value }}" value="1">
+                            <input type="radio" id="assisted_{{ forloop.counter }}_1" name="rating_{{ category_value }}" value="1" {% if rating_values|get_item:category_value == "1" %}checked{% endif %}>
                             <label for="assisted_{{ forloop.counter }}_1" title="1 star">&#9733;</label>
                         </div>
                     </div>
                     <div class="comment-section">
                         <label for="comment_{{ category_value }}" class="comment-label">Comment (optional)</label>
-                        <textarea id="comment_{{ category_value }}" name="comment_{{ category_value }}" class="category-comment" rows="3" placeholder="Write a short comment..."></textarea>
+                        <textarea id="comment_{{ category_value }}" name="comment_{{ category_value }}" class="category-comment" rows="3" placeholder="Write a short comment...">{{ rating_comments|get_item:category_value }}</textarea>
                     </div>
                 </div>
             {% endfor %}
@@ -249,6 +270,14 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const consentError = document.getElementById('consent-error');
+    const consentInput = document.getElementById('{{ form.consent_acknowledged.id_for_label }}');
+
+    if (consentError && consentInput) {
+        consentInput.focus();
+        document.getElementById('consent-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     const difficultyCheckboxes = document.querySelectorAll('input[name="difficulty"]');
     const noDifficultyValue = ' No difficulty';
 
