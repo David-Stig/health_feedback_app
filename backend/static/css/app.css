@@ -81,6 +81,27 @@ img {
     padding: 1rem 0;
 }
 
+.login-screen .site-header {
+    position: static;
+    background: rgba(255, 255, 255, 0.78);
+}
+
+.login-screen .header-shell {
+    padding: 0.95rem 0;
+    justify-content: center;
+}
+
+.login-screen .header-shell .brand {
+    text-align: center;
+}
+
+.login-screen .page-shell {
+    min-height: calc(100vh - 88px);
+    display: grid;
+    align-items: center;
+    padding: 2rem 0;
+}
+
 .admin-header-shell {
     display: grid;
     grid-template-columns: auto 1fr auto;
@@ -329,6 +350,172 @@ button,
     padding: 2rem 0 4rem;
 }
 
+.dashboard-overview-shell {
+    width: min(1360px, 100%);
+    margin: 0 auto;
+    display: grid;
+    gap: 1.5rem;
+}
+
+.dashboard-header--overview {
+    display: grid;
+    gap: 1rem;
+}
+
+.dashboard-header--overview h1 {
+    margin: 0;
+}
+
+.dashboard-section {
+    display: grid;
+    gap: 1rem;
+}
+
+.dashboard-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.dashboard-section-heading h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.dashboard-filter-panel {
+    padding: 1.25rem;
+}
+
+.dashboard-filter-form {
+    display: grid;
+    gap: 1rem;
+}
+
+.dashboard-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.dashboard-filter-grid label {
+    gap: 0.45rem;
+}
+
+.dashboard-filter-grid label span {
+    font-weight: 600;
+    font-size: 0.92rem;
+}
+
+.dashboard-filter-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.dashboard-filter-date.is-hidden {
+    display: none;
+}
+
+.dashboard-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.dashboard-kpi-card {
+    min-height: 140px;
+}
+
+.dashboard-two-column-grid,
+.dashboard-coverage-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.dashboard-patient-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.experience-card,
+.source-panel {
+    display: grid;
+    gap: 1rem;
+    align-content: start;
+}
+
+.experience-card-header {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.experience-card-primary {
+    display: grid;
+    gap: 0.15rem;
+}
+
+.experience-card-primary strong {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.experience-card-primary span {
+    font-weight: 600;
+}
+
+.experience-card-primary p,
+.experience-breakdown-item small {
+    margin: 0;
+    color: var(--muted);
+}
+
+.experience-breakdown,
+.source-breakdown {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.experience-breakdown-item,
+.source-breakdown-item {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.experience-breakdown-labels,
+.source-breakdown-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: baseline;
+}
+
+.mini-bar {
+    width: 100%;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: rgba(217, 226, 236, 0.95);
+    overflow: hidden;
+}
+
+.mini-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: #14746f;
+}
+
+.mini-bar-fill--source {
+    background: #2c7da0;
+}
+
+.coverage-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
 .public-feedback-page {
     display: flex;
     flex-direction: column;
@@ -450,53 +637,131 @@ button,
 }
 
 .login-page {
-    display: flex;
+    display: grid;
     justify-content: center;
+    width: 100%;
 }
 
 .login-shell {
-    width: min(100%, 520px);
+    width: min(480px, calc(100vw - 2rem));
     margin: 0 auto;
     display: grid;
-    gap: 1.5rem;
+    gap: 1rem;
     justify-items: center;
 }
 
-.login-brand {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-}
-
 .login-logo {
-    width: min(220px, 65vw);
+    width: clamp(120px, 32vw, 156px);
     height: auto;
     display: block;
+    margin: 0 auto;
+    justify-self: center;
+    align-self: center;
 }
 
 .login-card {
     width: 100%;
     margin: 0;
-    padding: 2rem;
+    padding: 2.2rem 2rem 1.9rem;
     display: grid;
-    gap: 1.5rem;
+    gap: 1.35rem;
 }
 
 .login-card-header {
     display: grid;
-    gap: 0.65rem;
+    gap: 0.45rem;
     text-align: center;
 }
 
 .login-card-header h1,
-.login-card-header .eyebrow,
 .login-card-header .subtle {
     margin: 0;
 }
 
+.login-card-header h1 {
+    font-size: clamp(1.8rem, 4vw, 2rem);
+    line-height: 1.15;
+}
+
+.login-system-name {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.98rem;
+    line-height: 1.5;
+}
+
 .login-form {
     width: 100%;
-    gap: 1.1rem;
+    gap: 1rem;
+}
+
+.login-field {
+    gap: 0.45rem;
+}
+
+.login-label {
+    display: block;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #243b53;
+}
+
+.password-field {
+    position: relative;
+    display: block;
+}
+
+.password-field input[type="password"],
+.password-field input[type="text"] {
+    padding-right: 3.5rem;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.65rem;
+    transform: translateY(-50%);
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #486581;
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible {
+    background: rgba(15, 118, 110, 0.08);
+    border-color: rgba(15, 118, 110, 0.15);
+}
+
+.password-toggle__icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    display: inline-flex;
+}
+
+.password-toggle__icon svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+}
+
+.login-form .button-primary {
+    min-height: 48px;
+    margin-top: 0.2rem;
+    font-weight: 600;
+}
+
+.login-footer {
+    margin: 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.88rem;
 }
 
 .eyebrow {
@@ -560,11 +825,11 @@ button,
 }
 
 .chart-panel--standard {
-    min-height: 380px;
+    min-height: 360px;
 }
 
 .chart-panel--category {
-    min-height: 380px;
+    min-height: 360px;
 }
 
 .chart-card-intro {
@@ -611,11 +876,11 @@ button,
 }
 
 .chart-canvas-wrap--standard {
-    height: 260px;
+    height: 280px;
 }
 
 .chart-canvas-wrap--category {
-    height: 260px;
+    height: 280px;
 }
 
 .chart-canvas-wrap canvas {
@@ -760,6 +1025,22 @@ textarea {
 input[type="radio"],
 input[type="checkbox"] {
     accent-color: var(--brand);
+}
+
+.form-control:focus,
+input[type="text"]:focus,
+input[type="search"]:focus,
+input[type="email"]:focus,
+input[type="number"]:focus,
+input[type="file"]:focus,
+input[type="password"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus {
+    outline: 2px solid rgba(15, 118, 110, 0.18);
+    outline-offset: 1px;
+    border-color: rgba(15, 118, 110, 0.55);
+    box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.08);
 }
 
 .form-check {
@@ -1161,6 +1442,28 @@ input[type="checkbox"] {
     .grid-two {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .dashboard-filter-grid,
+    .dashboard-patient-grid,
+    .dashboard-kpi-grid,
+    .dashboard-two-column-grid,
+    .dashboard-coverage-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1200px) {
+    .dashboard-filter-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .dashboard-kpi-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .dashboard-patient-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 767px) {
@@ -1274,7 +1577,12 @@ input[type="checkbox"] {
     }
 
     .login-card {
-        padding: 1.5rem;
+        padding: 1.5rem 1.15rem 1.25rem;
+    }
+
+    .login-screen .page-shell {
+        min-height: calc(100vh - 76px);
+        padding: 1.35rem 0 1.5rem;
     }
 
     .chart-panel--standard,
@@ -1288,5 +1596,23 @@ input[type="checkbox"] {
 
     .chart-canvas-wrap--category {
         height: 260px;
+    }
+
+    .dashboard-filter-grid,
+    .dashboard-patient-grid,
+    .dashboard-kpi-grid,
+    .dashboard-two-column-grid,
+    .dashboard-coverage-grid,
+    .coverage-stat-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-filter-actions {
+        flex-direction: column;
+    }
+
+    .dashboard-filter-actions .button-primary,
+    .dashboard-filter-actions .button-secondary {
+        width: 100%;
     }
 }

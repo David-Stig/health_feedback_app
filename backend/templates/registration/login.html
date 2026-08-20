@@ -1,39 +1,102 @@
 {% extends "public_base.html" %}
 {% load static %}
+{% now "Y" as current_year %}
 
 {% block title %}Admin Login | Health Facility Feedback System{% endblock %}
+{% block body_class %}login-screen{% endblock %}
 {% block page_class %}login-page{% endblock %}
+{% block header_nav %}{% endblock %}
 
 {% block content %}
 <section class="login-shell">
-    <div class="login-brand">
-        <img src="{% static 'images/CRHE_logo.png' %}" alt="CRHE Logo" class="login-logo">
-    </div>
+    <section class="auth-card login-card" aria-labelledby="admin-login-title">
+        <img
+            src="{% static 'images/CRHE_logo.png' %}"
+            alt="Centre for Reproductive Health and Education logo"
+            class="login-logo"
+        >
 
-    <section class="auth-card login-card">
         <div class="login-card-header">
-            <p class="eyebrow">Secure Dashboard</p>
-            <h1>Admin login</h1>
-            <p class="subtle">Use your staff account to manage facilities, review submissions, and export reports.</p>
+            <h1 id="admin-login-title">Admin Login</h1>
+            <p class="login-system-name">Health Facility Feedback System</p>
         </div>
 
         <form method="post" class="stack login-form">
             {% csrf_token %}
             {% if form.non_field_errors %}
-                <div class="message error">
+                <div class="message error" role="alert" aria-live="polite">
                     {{ form.non_field_errors }}
                 </div>
             {% endif %}
-            <label>
-                Username
+
+            <label for="{{ form.username.id_for_label }}" class="login-field">
+                <span class="login-label">{{ form.username.label }}</span>
                 {{ form.username }}
+                {% if form.username.errors %}
+                    <span class="field-errors" role="alert">{{ form.username.errors|join:", " }}</span>
+                {% endif %}
             </label>
-            <label>
-                Password
-                {{ form.password }}
+
+            <label for="{{ form.password.id_for_label }}" class="login-field">
+                <span class="login-label">{{ form.password.label }}</span>
+                <span class="password-field">
+                    {{ form.password }}
+                    <button
+                        type="button"
+                        class="password-toggle"
+                        data-password-toggle
+                        aria-controls="{{ form.password.id_for_label }}"
+                        aria-label="Show password"
+                    >
+                        <span class="password-toggle__icon password-toggle__icon--show" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                                <path d="M12 5c5.5 0 9.59 4.03 10.81 6.5C21.59 13.97 17.5 18 12 18S2.41 13.97 1.19 11.5C2.41 9.03 6.5 5 12 5Zm0 2C8.37 7 5.36 9.4 3.96 11.5 5.36 13.6 8.37 16 12 16s6.64-2.4 8.04-4.5C18.64 9.4 15.63 7 12 7Zm0 1.75A2.75 2.75 0 1 1 9.25 11.5 2.75 2.75 0 0 1 12 8.75Zm0 2A.75.75 0 1 0 12.75 11.5.75.75 0 0 0 12 10.75Z"></path>
+                            </svg>
+                        </span>
+                        <span class="password-toggle__icon password-toggle__icon--hide" aria-hidden="true" hidden>
+                            <svg viewBox="0 0 24 24" role="presentation" focusable="false">
+                                <path d="M3.28 2.22 21.78 20.72l-1.06 1.06-3.17-3.17A12.5 12.5 0 0 1 12 20c-5.5 0-9.59-4.03-10.81-6.5a13.38 13.38 0 0 1 4.06-4.53L2.22 3.28ZM12 18a10.54 10.54 0 0 0 4.01-.81l-1.74-1.74a4.25 4.25 0 0 1-5.72-5.72L6.7 7.88A11.04 11.04 0 0 0 3.96 11.5C5.36 13.6 8.37 18 12 18Zm0-13c5.5 0 9.59 4.03 10.81 6.5a13.06 13.06 0 0 1-4.07 4.54l-1.43-1.43a11.09 11.09 0 0 0 2.73-3.11C18.64 9.4 15.63 7 12 7a10.48 10.48 0 0 0-4.02.82L6.45 6.29A12.37 12.37 0 0 1 12 5Z"></path>
+                            </svg>
+                        </span>
+                    </button>
+                </span>
+                {% if form.password.errors %}
+                    <span class="field-errors" role="alert">{{ form.password.errors|join:", " }}</span>
+                {% endif %}
             </label>
+
             <button type="submit" class="button-primary button-full">Sign in</button>
         </form>
     </section>
+
+    <p class="login-footer">&copy; {{ current_year }} Centre for Reproductive Health and Education</p>
 </section>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const toggle = document.querySelector("[data-password-toggle]");
+        const passwordInput = document.getElementById("id_password");
+
+        if (!toggle || !passwordInput) {
+            return;
+        }
+
+        const showIcon = toggle.querySelector(".password-toggle__icon--show");
+        const hideIcon = toggle.querySelector(".password-toggle__icon--hide");
+
+        toggle.addEventListener("click", function () {
+            const showingPassword = passwordInput.type === "text";
+            passwordInput.type = showingPassword ? "password" : "text";
+            toggle.setAttribute("aria-label", showingPassword ? "Show password" : "Hide password");
+
+            if (showIcon) {
+                showIcon.hidden = !showingPassword;
+            }
+
+            if (hideIcon) {
+                hideIcon.hidden = showingPassword;
+            }
+        });
+    });
+</script>
 {% endblock %}

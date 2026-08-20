@@ -10,6 +10,85 @@ from .models import get_or_create_dashboard_profile
 User = get_user_model()
 
 
+class DashboardOverviewFilterForm(forms.Form):
+    PERIOD_TODAY = "today"
+    PERIOD_7_DAYS = "7d"
+    PERIOD_30_DAYS = "30d"
+    PERIOD_THIS_MONTH = "month"
+    PERIOD_3_MONTHS = "90d"
+    PERIOD_THIS_YEAR = "year"
+    PERIOD_ALL = "all"
+    PERIOD_CUSTOM = "custom"
+
+    PERIOD_CHOICES = [
+        (PERIOD_TODAY, "Today"),
+        (PERIOD_7_DAYS, "Last 7 days"),
+        (PERIOD_30_DAYS, "Last 30 days"),
+        (PERIOD_THIS_MONTH, "This month"),
+        (PERIOD_3_MONTHS, "Last 3 months"),
+        (PERIOD_THIS_YEAR, "This year"),
+        (PERIOD_ALL, "All time"),
+        (PERIOD_CUSTOM, "Custom range"),
+    ]
+
+    period = forms.ChoiceField(required=False, choices=PERIOD_CHOICES)
+    province = forms.ChoiceField(required=False)
+    facility = forms.ModelChoiceField(queryset=Facility.objects.none(), required=False)
+    source = forms.ChoiceField(required=False)
+    date_from = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    date_to = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        scoped_facilities = Facility.objects.all().order_by("name")
+        if user and not user.is_staff:
+            profile = get_or_create_dashboard_profile(user)
+            if profile.is_dashboard_user and profile.facility_id:
+                scoped_facilities = scoped_facilities.filter(pk=profile.facility_id)
+            else:
+                scoped_facilities = scoped_facilities.none()
+
+        provinces = scoped_facilities.values_list("province", flat=True).distinct().order_by("province")
+        self.fields["period"].initial = self.PERIOD_30_DAYS
+        self.fields["province"].choices = [("", "All Provinces")] + [(province, province) for province in provinces]
+        self.fields["source"].choices = [
+            ("", "All Sources"),
+            (Feedback.SubmissionSource.QR_PUBLIC, "Public QR"),
+            (Feedback.SubmissionSource.ASSISTED_CAPTURE, "Assisted Capture"),
+        ]
+
+        selected_province = ""
+        if self.is_bound:
+            selected_province = (self.data.get(self.add_prefix("province")) or "").strip()
+        else:
+            selected_province = (self.initial.get("province") or "").strip() if self.initial else ""
+
+        facility_queryset = scoped_facilities
+        if selected_province:
+            facility_queryset = facility_queryset.filter(province=selected_province)
+
+        self.fields["facility"].queryset = facility_queryset
+        self.fields["facility"].empty_label = "All Facilities"
+
+        for field in self.fields.values():
+            field.widget.attrs.update({"class": "form-control"})
+
+    def clean(self):
+        cleaned_data = super().clean()
+        period = cleaned_data.get("period") or self.PERIOD_30_DAYS
+        date_from = cleaned_data.get("date_from")
+        date_to = cleaned_data.get("date_to")
+
+        if period != self.PERIOD_CUSTOM:
+            cleaned_data["date_from"] = None
+            cleaned_data["date_to"] = None
+        elif date_from and date_to and date_from > date_to:
+            self.add_error("date_to", "End date must be on or after the start date.")
+
+        cleaned_data["period"] = period
+        return cleaned_data
+
+
 class FeedbackFilterForm(forms.Form):
     province = forms.ChoiceField(required=False)
     district = forms.ChoiceField(required=False)

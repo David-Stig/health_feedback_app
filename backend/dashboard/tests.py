@@ -19,7 +19,10 @@ User = get_user_model()
 TEST_MEDIA_ROOT = tempfile.mkdtemp()
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(
+    MEDIA_ROOT=TEST_MEDIA_ROOT,
+    STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage",
+)
 class DashboardAccessTests(TestCase):
     def _create_submission(self, facility, *, rating_pairs, **shared_fields):
         submission = Feedback.objects.create(
@@ -214,10 +217,11 @@ class DashboardAccessTests(TestCase):
         response = self.client.get(reverse("dashboard:home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("received_service_breakdown", response.context)
-        self.assertIn("payment_breakdown", response.context)
-        self.assertIn("medicines_breakdown", response.context)
-        self.assertIn("revisit_breakdown", response.context)
+        self.assertIn("patient_experience_cards", response.context)
+        self.assertIn("received_service_card", response.context)
+        self.assertIn("payment_card", response.context)
+        self.assertIn("medicines_card", response.context)
+        self.assertIn("revisit_card", response.context)
         self.assertIn("insurance_breakdown", response.context)
         self.assertIn("change_breakdown", response.context)
         self.assertIn("reason_not_received_breakdown", response.context)
@@ -225,6 +229,8 @@ class DashboardAccessTests(TestCase):
         self.assertIn("change_chart_summary", response.context)
         self.assertIn("insurance_percentages", response.context)
         self.assertIn("change_percentages", response.context)
+        self.assertIn("province_summary", response.context)
+        self.assertIn("source_breakdown", response.context)
 
     def test_dashboard_home_submission_breakdowns_count_parent_submissions_once(self):
         self._create_submission(
@@ -249,7 +255,10 @@ class DashboardAccessTests(TestCase):
         change_breakdown = {item["value"]: item["total"] for item in response.context["change_breakdown"]}
         reason_breakdown = {item["value"]: item["total"] for item in response.context["reason_not_received_breakdown"]}
         facility_breakdown = {item["facility__name"]: item["total"] for item in response.context["facility_breakdown"]}
-        province_breakdown = {item["facility__province"]: item["total"] for item in response.context["province_breakdown"]}
+        province_breakdown = {
+            item["facility__province"]: item["total"]
+            for item in response.context["province_summary"]["rows"]
+        }
 
         self.assertEqual(source_breakdown[Feedback.SubmissionSource.QR_PUBLIC], 2)
         self.assertEqual(insurance_breakdown[Feedback.INSURANCE.NHIMA], 1)
@@ -257,6 +266,7 @@ class DashboardAccessTests(TestCase):
         self.assertEqual(reason_breakdown[Feedback.ReasonNotReceived.MEDICINE], 1)
         self.assertEqual(facility_breakdown[self.facility_a.name], 2)
         self.assertEqual(province_breakdown[self.facility_a.province], 2)
+        self.assertEqual(response.context["public_qr_total"] + response.context["assisted_total"], response.context["total_submissions"])
 
     def test_dashboard_home_chart_summaries_use_answered_submissions_and_clear_labels(self):
         Feedback.objects.filter(facility=self.facility_a).update(
@@ -271,11 +281,58 @@ class DashboardAccessTests(TestCase):
         insurance_breakdown = response.context["insurance_breakdown"]
         change_breakdown = response.context["change_breakdown"]
         self.assertEqual(response.context["insurance_chart_summary"], "1 respondents")
-        self.assertEqual(response.context["change_chart_summary"], "1 selections from 1 submissions")
-        self.assertEqual(response.context["change_chart_note"], "Multiple selections allowed")
+        self.assertEqual(response.context["change_chart_summary"], "1 respondents")
+        self.assertEqual(response.context["change_chart_note"], "")
         self.assertEqual(insurance_breakdown[0]["label"], "No insurance used")
         self.assertEqual(insurance_breakdown[0]["percentage"], 100.0)
         self.assertEqual(change_breakdown[0]["percentage"], 100.0)
+
+    def test_dashboard_home_source_filter_limits_all_metrics(self):
+        self._create_submission(
+            self.facility_a,
+            rating_pairs=[(Feedback.Category.MEDICATION, 3, "Assisted")],
+            submission_source=Feedback.SubmissionSource.ASSISTED_CAPTURE,
+            insurance=Feedback.INSURANCE.PRIVATE,
+            change=Feedback.CHANGE.OTHER,
+            received_service=Feedback.receivedService.YES,
+        )
+        self.client.login(username="dash", password="secret123")
+
+        response = self.client.get(reverse("dashboard:home"), {"source": Feedback.SubmissionSource.ASSISTED_CAPTURE})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_submissions"], 1)
+        self.assertEqual(response.context["public_qr_total"], 0)
+        self.assertEqual(response.context["assisted_total"], 1)
+        self.assertEqual(response.context["source_breakdown"][1]["percentage"], 100.0)
+        self.assertEqual(response.context["insurance_breakdown"][0]["value"], Feedback.INSURANCE.PRIVATE)
+
+    def test_dashboard_home_period_filter_excludes_older_feedback(self):
+        older_submission = self._create_submission(
+            self.facility_a,
+            rating_pairs=[(Feedback.Category.MEDICATION, 2, "Old")],
+            submission_source=Feedback.SubmissionSource.QR_PUBLIC,
+        )
+        Feedback.objects.filter(pk=older_submission.pk).update(created_at=timezone.now() - timedelta(days=45))
+        self.client.login(username="dash", password="secret123")
+
+        response = self.client.get(reverse("dashboard:home"), {"period": "30d"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_submissions"], 1)
+        self.assertEqual(response.context["trend_totals"], [1])
+
+    def test_dashboard_home_facility_filter_and_empty_state(self):
+        self.client.login(username="dash", password="secret123")
+
+        response = self.client.get(
+            reverse("dashboard:home"),
+            {"period": "today", "source": Feedback.SubmissionSource.ASSISTED_CAPTURE},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total_submissions"], 0)
+        self.assertContains(response, "No feedback available for the selected period.")
 
     def test_dashboard_user_can_open_detail_for_assigned_facility_feedback_only(self):
         visible_feedback = Feedback.objects.filter(facility=self.facility_a).first()
@@ -294,7 +351,10 @@ class DashboardAccessTests(TestCase):
         self.assertEqual(hidden_response.status_code, 404)
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(
+    MEDIA_ROOT=TEST_MEDIA_ROOT,
+    STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage",
+)
 class FacilityManagementTests(TestCase):
     def setUp(self):
         self.staff_user = User.objects.create_user(
@@ -364,7 +424,10 @@ class FacilityManagementTests(TestCase):
         self.assertEqual(returned_names, {"Mansa General Hospital"})
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(
+    MEDIA_ROOT=TEST_MEDIA_ROOT,
+    STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage",
+)
 class DashboardUserManagementTests(TestCase):
     def setUp(self):
         self.staff_user = User.objects.create_user(

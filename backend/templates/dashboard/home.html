@@ -3,207 +3,299 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<section class="dashboard-header">
-    <div>
-        <p class="eyebrow">Admin Dashboard</p>
-        <h1>Feedback analytics overview</h1>
-    </div>
-    <div class="stat-grid">
-        <div class="stat-card">
-            <span>Total submissions</span>
-            <strong>{{ total_submissions }}</strong>
+<div class="dashboard-overview-shell">
+    <section class="dashboard-header dashboard-header--overview">
+        <div>
+            <p class="eyebrow">Admin Dashboard</p>
+            <h1>Feedback Analytics Overview</h1>
         </div>
-        <div class="stat-card">
-            <span>Facilities</span>
-            <strong>{{ facility_count }}</strong>
-        </div>
-        <div class="stat-card">
-            <span>Average rating</span>
-            <strong>{{ average_rating }}</strong>
-        </div>
-        <div class="stat-card">
-            <span>Public QR</span>
-            <strong>{{ public_qr_total }}</strong>
-        </div>
-        <div class="stat-card">
-            <span>Assisted</span>
-            <strong>{{ assisted_total }}</strong>
-        </div>
-        <div class="stat-card">
-            <span>Active sessions</span>
-            <strong>{{ active_session_total }}</strong>
-        </div>
-    </div>
-</section>
+    </section>
 
-<section class="chart-grid">
-    <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-intro">
-            <div class="chart-card-header">
-                <h2>Ratings by category</h2>
-                <p class="chart-summary">{{ total_rating_responses }} rating responses</p>
+    <section class="panel dashboard-filter-panel">
+        <form method="get" class="dashboard-filter-form">
+            <div class="dashboard-filter-grid">
+                <label>
+                    <span>Period</span>
+                    {{ filter_form.period }}
+                </label>
+                <label>
+                    <span>Province</span>
+                    {{ filter_form.province }}
+                </label>
+                <label>
+                    <span>Facility</span>
+                    {{ filter_form.facility }}
+                </label>
+                <label>
+                    <span>Source</span>
+                    {{ filter_form.source }}
+                </label>
+                <label class="dashboard-filter-date {% if filter_form.period.value != 'custom' %}is-hidden{% endif %}">
+                    <span>From</span>
+                    {{ filter_form.date_from }}
+                </label>
+                <label class="dashboard-filter-date {% if filter_form.period.value != 'custom' %}is-hidden{% endif %}">
+                    <span>To</span>
+                    {{ filter_form.date_to }}
+                </label>
             </div>
-        </div>
-        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
-            <canvas id="categoryChart" aria-label="Ratings by category chart"></canvas>
-        </div>
-    </article>
-    <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-intro">
-            <div class="chart-card-header">
-                <h2>Submissions over time</h2>
-                <p class="chart-summary">{{ total_submissions }} submissions in current view</p>
+            <div class="dashboard-filter-actions">
+                <button type="submit" class="button-primary">Apply filters</button>
+                <a href="{{ dashboard_reset_url }}" class="button-secondary">Reset</a>
             </div>
-        </div>
-        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
-            <canvas id="trendChart" aria-label="Submissions over time chart"></canvas>
-        </div>
-    </article>
-    <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-intro">
-            <div class="chart-card-header">
-                <h2>Received all services needed</h2>
-            </div>
-        </div>
-        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
-            <canvas id="receivedServiceChart" aria-label="Received all services needed chart"></canvas>
-        </div>
-    </article>
-</section>
+        </form>
+    </section>
 
-<section class="chart-grid">
-    <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-intro">
-            <div class="chart-card-header">
-                <h2>Paid out of pocket</h2>
-            </div>
+    <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+            <h2>Primary KPIs</h2>
         </div>
-        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
-            <canvas id="paymentChart" aria-label="Paid out of pocket chart"></canvas>
+        <div class="dashboard-kpi-grid">
+            <article class="stat-card dashboard-kpi-card">
+                <span>Total Feedback</span>
+                <strong>{{ total_submissions }}</strong>
+            </article>
+            <article class="stat-card dashboard-kpi-card">
+                <span>Average Rating</span>
+                <strong>{{ average_rating }} / 5</strong>
+            </article>
+            <article class="stat-card dashboard-kpi-card">
+                <span>Facilities</span>
+                <strong>{{ facility_count }}</strong>
+            </article>
+            <article class="stat-card dashboard-kpi-card">
+                <span>Active Sessions</span>
+                <strong>{{ active_session_total }}</strong>
+            </article>
         </div>
-    </article>
-    <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-intro">
-            <div class="chart-card-header">
-                <h2>Medidicines Available</h2>
-            </div>
-        </div>
-        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
-            <canvas id="medicinesChart" aria-label="Got medicines here chart"></canvas>
-        </div>
-    </article>
-    <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-intro">
-            <div class="chart-card-header">
-                <h2>Would Return to Facility</h2>
-            </div>
-        </div>
-        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
-            <canvas id="revisitChart" aria-label="Would come back chart"></canvas>
-        </div>
-    </article>
-</section>
+    </section>
 
-<section class="chart-grid">
-    <article class="panel chart-panel chart-panel--standard">
-        <div class="chart-card-intro">
-            <div class="chart-card-header">
-                <h2>Submission sources</h2>
-                <p class="chart-summary">{{ total_submissions }} submissions</p>
-            </div>
+    <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+            <h2>Performance &amp; Trends</h2>
         </div>
-        <div class="chart-canvas-wrap chart-canvas-wrap--standard">
-            <canvas id="sourceChart" aria-label="Submission sources chart"></canvas>
+        <div class="dashboard-two-column-grid">
+            <article class="panel chart-panel chart-panel--category">
+                <div class="chart-card-intro">
+                    <div class="chart-card-header">
+                        <h3>Average Rating by Category</h3>
+                        <p class="chart-summary">{{ total_rating_responses }} rating responses</p>
+                    </div>
+                </div>
+                <div class="chart-canvas-wrap chart-canvas-wrap--category">
+                    <canvas id="categoryChart" aria-label="Average rating by category chart"></canvas>
+                </div>
+            </article>
+            <article class="panel chart-panel chart-panel--standard">
+                <div class="chart-card-intro">
+                    <div class="chart-card-header">
+                        <h3>Feedback Volume Over Time</h3>
+                        <p class="chart-summary">{{ total_submissions }} submissions in current view</p>
+                    </div>
+                </div>
+                <div class="chart-canvas-wrap chart-canvas-wrap--standard">
+                    <canvas id="trendChart" aria-label="Feedback volume over time chart"></canvas>
+                </div>
+            </article>
         </div>
-    </article>
-    <article class="panel chart-panel chart-panel--category" aria-labelledby="insurance-chart-title">
-        <div class="chart-card-intro">
-            <div class="chart-card-header">
-                <h2 id="insurance-chart-title">Insurance used</h2>
-                <p class="chart-summary">{{ insurance_chart_summary }}</p>
-            </div>
-            {% if insurance_chart_note %}
-                <p class="chart-note">{{ insurance_chart_note }}</p>
-            {% endif %}
-        </div>
-        <div class="chart-canvas-wrap chart-canvas-wrap--category">
-            <canvas id="insuranceChart" aria-label="Insurance used distribution chart"></canvas>
-        </div>
-    </article>
-    <article class="panel chart-panel chart-panel--category" aria-labelledby="change-chart-title">
-        <div class="chart-card-intro">
-            <div class="chart-card-header">
-                <h2 id="change-chart-title">Suggested top change</h2>
-                <p class="chart-summary">{{ change_chart_summary }}</p>
-            </div>
-            {% if change_chart_note %}
-                <p class="chart-note">{{ change_chart_note }}</p>
-            {% endif %}
-        </div>
-        <div class="chart-canvas-wrap chart-canvas-wrap--category">
-            <canvas id="changeChart" aria-label="Suggested top change distribution chart"></canvas>
-        </div>
-    </article>
-</section>
+    </section>
 
-<section class="table-grid">
-    <article class="panel">
-        <h2>Top reasons services were not received</h2>
-        <table class="data-table">
-            <thead><tr><th>Reason</th><th>Responses</th></tr></thead>
-            <tbody>
-                {% for item in reason_not_received_breakdown %}
-                    <tr><td>{{ item.label }}</td><td>{{ item.total }}</td></tr>
-                {% empty %}
-                    <tr><td colspan="2">No missing-service reasons captured yet.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </article>
-    <article class="panel">
-        <h2>Top facilities</h2>
-        <table class="data-table">
-            <thead><tr><th>Facility</th><th>Submissions</th></tr></thead>
-            <tbody>
-                {% for item in facility_breakdown %}
-                    <tr><td>{{ item.facility__name }}</td><td>{{ item.total }}</td></tr>
-                {% empty %}
-                    <tr><td colspan="2">No feedback submitted yet.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </article>
-    <article class="panel">
-        <h2>Province summary</h2>
-        <table class="data-table">
-            <thead><tr><th>Province</th><th>Submissions</th></tr></thead>
-            <tbody>
-                {% for item in province_breakdown %}
-                    <tr><td>{{ item.facility__province }}</td><td>{{ item.total }}</td></tr>
-                {% empty %}
-                    <tr><td colspan="2">No province data available.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </article>
-</section>
+    <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+            <h2>Patient Experience</h2>
+        </div>
+        <div class="dashboard-patient-grid">
+            {% for card in patient_experience_cards %}
+                <article class="panel experience-card">
+                    <div class="experience-card-header">
+                        <h3>{{ card.title }}</h3>
+                        <p class="chart-summary">{{ card.answered_total }} answered</p>
+                    </div>
+                    {% if card.answered_total %}
+                        <div class="experience-card-primary">
+                            <strong>{{ card.primary_percentage }}%</strong>
+                            <span>{{ card.primary_label }}</span>
+                            <p>{{ card.primary_total }} of {{ card.answered_total }}</p>
+                        </div>
+                        <div class="experience-breakdown">
+                            {% for item in card.items %}
+                                <div class="experience-breakdown-item">
+                                    <div class="experience-breakdown-labels">
+                                        <span>{{ item.label }}</span>
+                                        <strong>{{ item.percentage }}%</strong>
+                                    </div>
+                                    <div class="mini-bar">
+                                        <span class="mini-bar-fill" style="width: {{ item.percentage }}%;"></span>
+                                    </div>
+                                    <small>{{ item.total }} responses</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="chart-empty-state">{{ card.empty_message }}</div>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+            <h2>Respondent Priorities</h2>
+        </div>
+        <div class="dashboard-two-column-grid">
+            <article class="panel chart-panel chart-panel--category">
+                <div class="chart-card-intro">
+                    <div class="chart-card-header">
+                        <h3>Suggested Top Changes</h3>
+                        <p class="chart-summary">{{ change_chart_summary }}</p>
+                    </div>
+                    {% if change_chart_note %}
+                        <p class="chart-note">{{ change_chart_note }}</p>
+                    {% endif %}
+                </div>
+                <div class="chart-canvas-wrap chart-canvas-wrap--category">
+                    <canvas id="changeChart" aria-label="Suggested top changes chart"></canvas>
+                </div>
+            </article>
+            <article class="panel chart-panel chart-panel--category">
+                <div class="chart-card-intro">
+                    <div class="chart-card-header">
+                        <h3>Top Reasons Services Were Not Received</h3>
+                        <p class="chart-summary">{{ reason_not_received_answered_total }} answered</p>
+                    </div>
+                </div>
+                <div class="chart-canvas-wrap chart-canvas-wrap--category">
+                    <canvas id="reasonChart" aria-label="Top reasons services were not received chart"></canvas>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+            <h2>Access &amp; Feedback Collection</h2>
+        </div>
+        <div class="dashboard-two-column-grid">
+            <article class="panel chart-panel chart-panel--category">
+                <div class="chart-card-intro">
+                    <div class="chart-card-header">
+                        <h3>Insurance Used</h3>
+                        <p class="chart-summary">{{ insurance_chart_summary }}</p>
+                    </div>
+                </div>
+                <div class="chart-canvas-wrap chart-canvas-wrap--category">
+                    <canvas id="insuranceChart" aria-label="Insurance used chart"></canvas>
+                </div>
+            </article>
+            <article class="panel source-panel">
+                <div class="chart-card-intro">
+                    <div class="chart-card-header">
+                        <h3>Submission Sources</h3>
+                        <p class="chart-summary">{{ total_submissions }} submissions</p>
+                    </div>
+                </div>
+                {% if source_breakdown %}
+                    <div class="source-breakdown">
+                        {% for item in source_breakdown %}
+                            <div class="source-breakdown-item">
+                                <div class="source-breakdown-labels">
+                                    <span>{{ item.label }}</span>
+                                    <strong>{{ item.total }} · {{ item.percentage }}%</strong>
+                                </div>
+                                <div class="mini-bar">
+                                    <span class="mini-bar-fill mini-bar-fill--source" style="width: {{ item.percentage }}%;"></span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="chart-empty-state">No feedback available for the selected period.</div>
+                {% endif %}
+            </article>
+        </div>
+    </section>
+
+    <section class="dashboard-section">
+        <div class="dashboard-section-heading">
+            <h2>Facility Coverage</h2>
+        </div>
+        <div class="dashboard-coverage-grid">
+            <article class="panel">
+                <div class="chart-card-header">
+                    <h3>Facilities by Feedback Volume</h3>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Facility</th>
+                                <th>Feedback</th>
+                                <th>Average Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in facility_breakdown %}
+                                <tr>
+                                    <td>{{ item.facility__name }}</td>
+                                    <td>{{ item.total }}</td>
+                                    <td>{% if item.average_rating %}{{ item.average_rating|floatformat:2 }} / 5{% else %}—{% endif %}</td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="3">No feedback available for the selected period.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+            <article class="panel">
+                <div class="chart-card-header">
+                    <h3>{% if province_summary.mode == "compact" %}Coverage{% else %}Province Summary{% endif %}</h3>
+                </div>
+                {% if province_summary.mode == "compact" %}
+                    <div class="coverage-stat-grid">
+                        <div class="highlight-card">
+                            <span>Provinces</span>
+                            <strong>{{ province_summary.province_count }}</strong>
+                        </div>
+                        <div class="highlight-card">
+                            <span>Facilities</span>
+                            <strong>{{ province_summary.facility_count }}</strong>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Province</th>
+                                    <th>Feedback</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in province_summary.rows %}
+                                    <tr>
+                                        <td>{{ item.facility__province }}</td>
+                                        <td>{{ item.total }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            </article>
+        </div>
+    </section>
+</div>
 
 {{ trend_labels|json_script:"trend-labels" }}
 {{ trend_totals|json_script:"trend-totals" }}
-{{ trend_ratings|json_script:"trend-ratings" }}
 {{ category_labels|json_script:"category-labels" }}
 {{ category_full_labels|json_script:"category-full-labels" }}
+{{ category_averages|json_script:"category-averages" }}
 {{ category_totals|json_script:"category-totals" }}
-{{ source_labels|json_script:"source-labels" }}
-{{ source_totals|json_script:"source-totals" }}
-{{ received_service_labels|json_script:"received-service-labels" }}
-{{ received_service_totals|json_script:"received-service-totals" }}
-{{ payment_labels|json_script:"payment-labels" }}
-{{ payment_totals|json_script:"payment-totals" }}
-{{ medicines_labels|json_script:"medicines-labels" }}
-{{ medicines_totals|json_script:"medicines-totals" }}
-{{ revisit_labels|json_script:"revisit-labels" }}
-{{ revisit_totals|json_script:"revisit-totals" }}
 {{ insurance_labels|json_script:"insurance-labels" }}
 {{ insurance_full_labels|json_script:"insurance-full-labels" }}
 {{ insurance_totals|json_script:"insurance-totals" }}
@@ -212,23 +304,17 @@
 {{ change_full_labels|json_script:"change-full-labels" }}
 {{ change_totals|json_script:"change-totals" }}
 {{ change_percentages|json_script:"change-percentages" }}
+{{ reason_labels|json_script:"reason-labels" }}
+{{ reason_full_labels|json_script:"reason-full-labels" }}
+{{ reason_totals|json_script:"reason-totals" }}
+{{ reason_percentages|json_script:"reason-percentages" }}
 <script>
     const trendLabels = JSON.parse(document.getElementById("trend-labels").textContent);
     const trendTotals = JSON.parse(document.getElementById("trend-totals").textContent);
-    const trendRatings = JSON.parse(document.getElementById("trend-ratings").textContent);
     const categoryLabels = JSON.parse(document.getElementById("category-labels").textContent);
     const categoryFullLabels = JSON.parse(document.getElementById("category-full-labels").textContent);
+    const categoryAverages = JSON.parse(document.getElementById("category-averages").textContent);
     const categoryTotals = JSON.parse(document.getElementById("category-totals").textContent);
-    const sourceLabels = JSON.parse(document.getElementById("source-labels").textContent);
-    const sourceTotals = JSON.parse(document.getElementById("source-totals").textContent);
-    const receivedServiceLabels = JSON.parse(document.getElementById("received-service-labels").textContent);
-    const receivedServiceTotals = JSON.parse(document.getElementById("received-service-totals").textContent);
-    const paymentLabels = JSON.parse(document.getElementById("payment-labels").textContent);
-    const paymentTotals = JSON.parse(document.getElementById("payment-totals").textContent);
-    const medicinesLabels = JSON.parse(document.getElementById("medicines-labels").textContent);
-    const medicinesTotals = JSON.parse(document.getElementById("medicines-totals").textContent);
-    const revisitLabels = JSON.parse(document.getElementById("revisit-labels").textContent);
-    const revisitTotals = JSON.parse(document.getElementById("revisit-totals").textContent);
     const insuranceLabels = JSON.parse(document.getElementById("insurance-labels").textContent);
     const insuranceFullLabels = JSON.parse(document.getElementById("insurance-full-labels").textContent);
     const insuranceTotals = JSON.parse(document.getElementById("insurance-totals").textContent);
@@ -237,92 +323,49 @@
     const changeFullLabels = JSON.parse(document.getElementById("change-full-labels").textContent);
     const changeTotals = JSON.parse(document.getElementById("change-totals").textContent);
     const changePercentages = JSON.parse(document.getElementById("change-percentages").textContent);
-    const palette = ["#0f4c5c", "#2c7da0", "#468faf", "#89c2d9", "#a9d6e5", "#f0b429", "#ef476f"];
+    const reasonLabels = JSON.parse(document.getElementById("reason-labels").textContent);
+    const reasonFullLabels = JSON.parse(document.getElementById("reason-full-labels").textContent);
+    const reasonTotals = JSON.parse(document.getElementById("reason-totals").textContent);
+    const reasonPercentages = JSON.parse(document.getElementById("reason-percentages").textContent);
 
-    function setChartHeight(canvasId, optionCount, minimumHeight = 220, rowHeight = 44) {
+    function renderEmptyState(canvasId, message) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) {
+            return null;
+        }
+        canvas.parentElement.innerHTML = `<div class="chart-empty-state">${message}</div>`;
+        return null;
+    }
+
+    function setChartHeight(canvasId, optionCount, minimumHeight = 240, rowHeight = 42) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) {
             return;
         }
-
         canvas.parentElement.style.height = `${Math.max(minimumHeight, optionCount * rowHeight)}px`;
     }
 
-    function wholeNumberTickStep(maxValue) {
-        if (maxValue <= 5) {
-            return 1;
-        }
-        if (maxValue <= 20) {
-            return 5;
-        }
-        if (maxValue <= 50) {
-            return 10;
-        }
-        return Math.ceil(maxValue / 25) * 5;
-    }
-
-    function createStandardChart(canvasId, config) {
+    function createHorizontalBarChart({ canvasId, labels, fullLabels, values, percentages, color, tooltipLabel, emptyMessage, maxValue = 5 }) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) {
             return null;
         }
-
-        return new Chart(canvas, config);
-    }
-
-    const circularChartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: {
-            padding: {
-                top: 0,
-                right: 8,
-                bottom: 8,
-                left: 8
-            }
-        },
-        plugins: {
-            legend: {
-                position: "top",
-                labels: {
-                    boxWidth: 18,
-                    boxHeight: 10,
-                    padding: 6,
-                    font: {
-                        size: 11
-                    }
-                }
-            }
-        }
-    };
-
-    function createHorizontalCategoryChart(options) {
-        const canvas = document.getElementById(options.canvasId);
-        if (!canvas) {
-            return null;
+        if (!labels.length || !values.length) {
+            return renderEmptyState(canvasId, emptyMessage);
         }
 
-        if (!options.labels.length || !options.values.length) {
-            canvas.parentElement.innerHTML = `<div class="chart-empty-state">${options.emptyMessage}</div>`;
-            return null;
-        }
-
-        setChartHeight(options.canvasId, options.labels.length, options.minimumHeight || 220, options.rowHeight || 44);
-
-        const maxValue = Math.max(...options.values, 0);
+        setChartHeight(canvasId, labels.length);
 
         return new Chart(canvas, {
             type: "bar",
             data: {
-                labels: options.labels,
+                labels,
                 datasets: [{
-                    label: options.questionType === "multiple" ? "Selections" : "Responses",
-                    data: options.values,
-                    backgroundColor: options.color,
-                    borderWidth: 0,
-                    borderRadius: 6,
-                    barThickness: 24,
-                    maxBarThickness: 30
+                    data: values,
+                    backgroundColor: color,
+                    borderRadius: 8,
+                    borderSkipped: false,
+                    maxBarThickness: 28,
                 }]
             },
             options: {
@@ -330,26 +373,22 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        display: false
-                    },
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            title(tooltipItems) {
-                                const index = tooltipItems[0].dataIndex;
-                                if (options.fullLabels && options.fullLabels[index]) {
-                                    return options.fullLabels[index];
-                                }
-                                return tooltipItems[0].label;
+                            title(items) {
+                                return fullLabels[items[0].dataIndex] || items[0].label;
                             },
                             label(context) {
-                                const value = context.raw || 0;
-                                const percentage = options.percentages[context.dataIndex] || 0;
-                                const noun = options.questionType === "multiple" ? "selections" : "responses";
-                                const denominator = options.questionType === "multiple"
-                                    ? "of responding submissions"
-                                    : "of answered submissions";
-                                return [`${value} ${noun}`, `${percentage}% ${denominator}`];
+                                const percentage = percentages ? percentages[context.dataIndex] : null;
+                                const segments = [`${context.raw} ${tooltipLabel}`];
+                                if (percentage !== null) {
+                                    segments.push(`${percentage}%`);
+                                }
+                                if (canvasId === "categoryChart") {
+                                    segments.push(`${categoryTotals[context.dataIndex]} rating responses`);
+                                }
+                                return segments;
                             }
                         }
                     }
@@ -357,28 +396,23 @@
                 scales: {
                     x: {
                         beginAtZero: true,
-                        suggestedMax: maxValue ? maxValue + wholeNumberTickStep(maxValue) : 1,
+                        suggestedMax: maxValue,
                         ticks: {
-                            precision: 0,
-                            stepSize: wholeNumberTickStep(maxValue)
+                            precision: 0
                         },
                         grid: {
                             color: "rgba(217, 226, 236, 0.8)"
                         }
                     },
                     y: {
+                        grid: { display: false },
+                        border: { display: false },
                         ticks: {
                             autoSkip: false,
                             color: "#102a43",
                             font: {
                                 size: 12
                             }
-                        },
-                        grid: {
-                            display: false
-                        },
-                        border: {
-                            display: false
                         }
                     }
                 }
@@ -386,128 +420,103 @@
         });
     }
 
-    createStandardChart("categoryChart", {
-        type: "bar",
-        data: {
+    if (categoryLabels.length && categoryAverages.length) {
+        createHorizontalBarChart({
+            canvasId: "categoryChart",
             labels: categoryLabels,
-            datasets: [{ label: "Rating responses", data: categoryTotals, backgroundColor: "#14746f" }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
+            fullLabels: categoryFullLabels,
+            values: categoryAverages,
+            percentages: null,
+            color: "#14746f",
+            tooltipLabel: "average rating",
+            emptyMessage: "No rating responses available for the selected period.",
+            maxValue: 5
+        });
+    } else {
+        renderEmptyState("categoryChart", "No rating responses available for the selected period.");
+    }
+
+    if (trendLabels.length && trendTotals.length) {
+        new Chart(document.getElementById("trendChart"), {
+            type: "line",
+            data: {
+                labels: trendLabels,
+                datasets: [{
+                    label: "Feedback submissions",
+                    data: trendTotals,
+                    borderColor: "#2c7da0",
+                    backgroundColor: "rgba(44, 125, 160, 0.12)",
+                    fill: true,
+                    tension: 0.28,
+                    pointRadius: 4,
+                    pointHoverRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
                 },
-                tooltip: {
-                    callbacks: {
-                        title(tooltipItems) {
-                            return categoryFullLabels[tooltipItems[0].dataIndex] || tooltipItems[0].label;
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    } else {
+        renderEmptyState("trendChart", "No feedback available for the selected period.");
+    }
 
-    createStandardChart("trendChart", {
-        type: "line",
-        data: {
-            labels: trendLabels,
-            datasets: [
-                { label: "Submissions", data: trendTotals, borderColor: "#2d6a4f", tension: 0.3, yAxisID: "y" },
-                { label: "Average rating", data: trendRatings, borderColor: "#f0b429", tension: 0.3, yAxisID: "y1" }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            layout: {
-                padding: {
-                    top: 0
-                }
-            },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: "top",
-                    labels: {
-                        padding: 6
-                    }
-                }
-            },
-            scales: {
-                y: { beginAtZero: true, position: "left" },
-                y1: { beginAtZero: true, position: "right", min: 0, max: 5, grid: { drawOnChartArea: false } }
-            }
-        }
-    });
-
-    createStandardChart("receivedServiceChart", {
-        type: "pie",
-        data: {
-            labels: receivedServiceLabels,
-            datasets: [{ data: receivedServiceTotals, backgroundColor: palette }]
-        },
-        options: circularChartOptions
-    });
-
-    createStandardChart("paymentChart", {
-        type: "pie",
-        data: {
-            labels: paymentLabels,
-            datasets: [{ data: paymentTotals, backgroundColor: palette }]
-        },
-        options: circularChartOptions
-    });
-
-    createStandardChart("sourceChart", {
-        type: "doughnut",
-        data: {
-            labels: sourceLabels,
-            datasets: [{ data: sourceTotals, backgroundColor: palette }]
-        },
-        options: circularChartOptions
-    });
-
-    createStandardChart("medicinesChart", {
-        type: "pie",
-        data: {
-            labels: medicinesLabels,
-            datasets: [{ data: medicinesTotals, backgroundColor: palette }]
-        },
-        options: circularChartOptions
-    });
-
-    createStandardChart("revisitChart", {
-        type: "pie",
-        data: {
-            labels: revisitLabels,
-            datasets: [{ data: revisitTotals, backgroundColor: palette }]
-        },
-        options: circularChartOptions
-    });
-
-    createHorizontalCategoryChart({
+    createHorizontalBarChart({
         canvasId: "insuranceChart",
         labels: insuranceLabels,
+        fullLabels: insuranceFullLabels,
         values: insuranceTotals,
         percentages: insurancePercentages,
-        fullLabels: insuranceFullLabels,
-        questionType: "single",
-        emptyMessage: "No feedback responses are available for the selected filters.",
-        color: "#2c7da0"
+        color: "#2c7da0",
+        tooltipLabel: "responses",
+        emptyMessage: "No responses available for this question.",
+        maxValue: Math.max(...insuranceTotals, 1)
     });
 
-    createHorizontalCategoryChart({
+    createHorizontalBarChart({
         canvasId: "changeChart",
         labels: changeLabels,
+        fullLabels: changeFullLabels,
         values: changeTotals,
         percentages: changePercentages,
-        fullLabels: changeFullLabels,
-        questionType: "multiple",
-        emptyMessage: "No feedback responses are available for the selected filters.",
-        color: "#f0b429"
+        color: "#f0b429",
+        tooltipLabel: "responses",
+        emptyMessage: "No responses available for this question.",
+        maxValue: Math.max(...changeTotals, 1)
     });
+
+    createHorizontalBarChart({
+        canvasId: "reasonChart",
+        labels: reasonLabels,
+        fullLabels: reasonFullLabels,
+        values: reasonTotals,
+        percentages: reasonPercentages,
+        color: "#ef476f",
+        tooltipLabel: "responses",
+        emptyMessage: "No responses available for this question.",
+        maxValue: Math.max(...reasonTotals, 1)
+    });
+
+    const periodSelect = document.getElementById("id_period");
+    const dateFields = document.querySelectorAll(".dashboard-filter-date");
+    if (periodSelect && dateFields.length) {
+        const syncDateFieldVisibility = () => {
+            const customSelected = periodSelect.value === "custom";
+            dateFields.forEach((field) => field.classList.toggle("is-hidden", !customSelected));
+        };
+        syncDateFieldVisibility();
+        periodSelect.addEventListener("change", syncDateFieldVisibility);
+    }
 </script>
 {% endblock %}

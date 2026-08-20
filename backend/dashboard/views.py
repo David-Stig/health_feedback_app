@@ -1,7 +1,6 @@
 import csv
 from io import TextIOWrapper
 from datetime import timedelta
-from collections import OrderedDict
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -9,7 +8,7 @@ from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.views import redirect_to_login
 from django.db import transaction
 from django.db.models import Avg, Case, CharField, Count, Q, Value, When
-from django.db.models.functions import TruncDate
+from django.db.models.functions import TruncDate, TruncMonth, TruncWeek
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
@@ -22,6 +21,7 @@ from feedback.models import Feedback, RatingResponse
 
 from .forms import (
     DashboardAccountForm,
+    DashboardOverviewFilterForm,
     DashboardPasswordChangeForm,
     DashboardUserCreationForm,
     DashboardUserUpdateForm,
@@ -411,138 +411,393 @@ def filtered_feedback_queryset(user, params):
     return queryset.order_by("-created_at", "-pk")
 
 
+def dashboard_active_sessions_queryset(user):
+    session_model = Feedback.collection_session.field.related_model
+    queryset = session_model.objects.select_related("facility").filter(status="active")
+    if user.is_authenticated and not user.is_staff:
+        profile = get_or_create_dashboard_profile(user)
+        if profile.is_dashboard_user and profile.facility_id:
+            queryset = queryset.filter(facility_id=profile.facility_id)
+        else:
+            queryset = queryset.none()
+    return queryset
+
+
+def apply_dashboard_period_filter(queryset, cleaned_data):
+    period = cleaned_data.get("period") or DashboardOverviewFilterForm.PERIOD_30_DAYS
+    now = timezone.localtime()
+    today = now.date()
+
+    if period == DashboardOverviewFilterForm.PERIOD_TODAY:
+        return queryset.filter(created_at__date=today)
+    if period == DashboardOverviewFilterForm.PERIOD_7_DAYS:
+        return queryset.filter(created_at__date__gte=today - timedelta(days=6))
+    if period == DashboardOverviewFilterForm.PERIOD_30_DAYS:
+        return queryset.filter(created_at__date__gte=today - timedelta(days=29))
+    if period == DashboardOverviewFilterForm.PERIOD_THIS_MONTH:
+        return queryset.filter(created_at__date__gte=today.replace(day=1))
+    if period == DashboardOverviewFilterForm.PERIOD_3_MONTHS:
+        return queryset.filter(created_at__date__gte=today - timedelta(days=89))
+    if period == DashboardOverviewFilterForm.PERIOD_THIS_YEAR:
+        return queryset.filter(created_at__date__gte=today.replace(month=1, day=1))
+    if period == DashboardOverviewFilterForm.PERIOD_CUSTOM:
+        if cleaned_data.get("date_from"):
+            queryset = queryset.filter(created_at__date__gte=cleaned_data["date_from"])
+        if cleaned_data.get("date_to"):
+            queryset = queryset.filter(created_at__date__lte=cleaned_data["date_to"])
+    return queryset
+
+
+def filtered_dashboard_feedback_queryset(user, cleaned_data):
+    queryset = scoped_feedback_queryset(user)
+    queryset = apply_dashboard_period_filter(queryset, cleaned_data)
+
+    if cleaned_data.get("province"):
+        queryset = queryset.filter(facility__province=cleaned_data["province"])
+    if cleaned_data.get("facility"):
+        queryset = queryset.filter(facility=cleaned_data["facility"])
+    if cleaned_data.get("source"):
+        queryset = queryset.filter(submission_source=cleaned_data["source"])
+
+    return queryset.order_by("-created_at", "-pk")
+
+
+def filtered_dashboard_sessions_queryset(user, cleaned_data):
+    queryset = dashboard_active_sessions_queryset(user)
+    if cleaned_data.get("source") == Feedback.SubmissionSource.QR_PUBLIC:
+        return queryset.none()
+    if cleaned_data.get("province"):
+        queryset = queryset.filter(facility__province=cleaned_data["province"])
+    if cleaned_data.get("facility"):
+        queryset = queryset.filter(facility=cleaned_data["facility"])
+    return queryset
+
+
+def build_distribution_items(queryset, field_name, choices, *, label_overrides=None):
+    label_overrides = label_overrides or {}
+    answered_total = count_answered_submissions(queryset, field_name)
+    items = []
+    for value, label in choices:
+        total = queryset.filter(**{field_name: value}).count()
+        if not total:
+            continue
+        items.append(
+            {
+                "value": value,
+                "label": label_overrides.get(value, label),
+                "full_label": label,
+                "total": total,
+                "percentage": round((total / answered_total) * 100, 1) if answered_total else 0,
+            }
+        )
+    return answered_total, items
+
+
+def build_patient_experience_card(queryset, *, field_name, title, choices, primary_value, label_overrides=None):
+    answered_total, items = build_distribution_items(
+        queryset,
+        field_name,
+        choices,
+        label_overrides=label_overrides,
+    )
+    primary_item = next((item for item in items if item["value"] == primary_value), None)
+    return {
+        "title": title,
+        "answered_total": answered_total,
+        "primary_label": primary_item["label"] if primary_item else dict(choices).get(primary_value, ""),
+        "primary_total": primary_item["total"] if primary_item else 0,
+        "primary_percentage": primary_item["percentage"] if primary_item else 0,
+        "items": items,
+        "empty_message": "No responses available for this question.",
+    }
+
+
+def build_average_rating_chart_data(rating_queryset):
+    normalization_cases = [
+        When(category__in=definition["source_values"], then=Value(definition["key"]))
+        for definition in RATING_CATEGORY_DEFINITIONS
+    ]
+    aggregated = {
+        row["normalized_category"]: row
+        for row in (
+            rating_queryset.annotate(
+                normalized_category=Case(
+                    *normalization_cases,
+                    default=Value(None),
+                    output_field=CharField(),
+                )
+            )
+            .exclude(normalized_category__isnull=True)
+            .values("normalized_category")
+            .annotate(total=Count("id"), average_rating=Avg("rating"))
+        )
+    }
+
+    items = []
+    response_total = 0
+    for definition in RATING_CATEGORY_DEFINITIONS:
+        row = aggregated.get(definition["key"], {})
+        total = row.get("total", 0)
+        average_rating = round(row.get("average_rating") or 0, 2)
+        response_total += total
+        items.append(
+            {
+                "key": definition["key"],
+                "full_label": definition["full_label"],
+                "short_label": definition["short_label"],
+                "total": total,
+                "average_rating": average_rating,
+            }
+        )
+    return items, response_total
+
+
+def build_feedback_volume_chart(feedback_qs, cleaned_data):
+    today = timezone.localdate()
+    if cleaned_data.get("period") == DashboardOverviewFilterForm.PERIOD_TODAY:
+        truncator = TruncDate("created_at")
+        formatter = lambda value: value.strftime("%Y-%m-%d")
+    else:
+        oldest_submission = feedback_qs.order_by("created_at").values_list("created_at", flat=True).first()
+        newest_submission = feedback_qs.order_by("-created_at").values_list("created_at", flat=True).first()
+        span_days = 0
+        if oldest_submission and newest_submission:
+            span_days = (timezone.localtime(newest_submission).date() - timezone.localtime(oldest_submission).date()).days
+        if cleaned_data.get("period") == DashboardOverviewFilterForm.PERIOD_CUSTOM and cleaned_data.get("date_from") and cleaned_data.get("date_to"):
+            span_days = (cleaned_data["date_to"] - cleaned_data["date_from"]).days
+        if cleaned_data.get("period") == DashboardOverviewFilterForm.PERIOD_ALL and oldest_submission:
+            span_days = (today - timezone.localtime(oldest_submission).date()).days
+
+        if span_days > 180:
+            truncator = TruncMonth("created_at")
+            formatter = lambda value: value.strftime("%b %Y")
+        elif span_days > 45:
+            truncator = TruncWeek("created_at")
+            formatter = lambda value: value.strftime("%d %b %Y")
+        else:
+            truncator = TruncDate("created_at")
+            formatter = lambda value: value.strftime("%Y-%m-%d")
+
+    trend_data = (
+        feedback_qs.annotate(period_bucket=truncator)
+        .values("period_bucket")
+        .annotate(total=Count("id", distinct=True))
+        .order_by("period_bucket")
+    )
+    return {
+        "labels": [formatter(item["period_bucket"]) for item in trend_data if item["period_bucket"]],
+        "totals": [item["total"] for item in trend_data if item["period_bucket"]],
+    }
+
+
+def build_submission_sources_data(feedback_qs):
+    total_submissions = feedback_qs.count()
+    items = []
+    for value, label in [
+        (Feedback.SubmissionSource.QR_PUBLIC, "Public QR"),
+        (Feedback.SubmissionSource.ASSISTED_CAPTURE, "Assisted Capture"),
+    ]:
+        total = feedback_qs.filter(submission_source=value).count()
+        if total_submissions or total:
+            items.append(
+                {
+                    "value": value,
+                    "label": label,
+                    "total": total,
+                    "percentage": round((total / total_submissions) * 100, 1) if total_submissions else 0,
+                }
+            )
+    return items
+
+
+def build_facility_coverage(feedback_qs):
+    return list(
+        feedback_qs.values("facility__name")
+        .annotate(
+            total=Count("id", distinct=True),
+            average_rating=Avg("rating_responses__rating"),
+        )
+        .order_by("-total", "facility__name")[:10]
+    )
+
+
+def build_province_summary(feedback_qs):
+    province_rows = list(
+        feedback_qs.values("facility__province")
+        .annotate(
+            total=Count("id", distinct=True),
+            facility_count=Count("facility_id", distinct=True),
+        )
+        .order_by("-total", "facility__province")
+    )
+    if len(province_rows) <= 1:
+        facility_count = feedback_qs.values("facility_id").distinct().count()
+        return {
+            "mode": "compact",
+            "province_count": len(province_rows),
+            "facility_count": facility_count,
+            "rows": province_rows,
+        }
+    return {
+        "mode": "table",
+        "province_count": len(province_rows),
+        "facility_count": feedback_qs.values("facility_id").distinct().count(),
+        "rows": province_rows,
+    }
+
+
 class DashboardHomeView(DashboardAccessMixin, TemplateView):
     template_name = "dashboard/home.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        feedback_qs = scoped_feedback_queryset(self.request.user)
-        total_submissions = feedback_qs.count()
-        recent_cutoff = timezone.now() - timedelta(days=30)
-        source_breakdown = choice_breakdown(
-            feedback_qs,
-            "submission_source",
-            Feedback.SubmissionSource.choices,
-        )
+        self.filter_form = DashboardOverviewFilterForm(self.request.GET or None, user=self.request.user)
+        if self.filter_form.is_valid():
+            filter_data = self.filter_form.cleaned_data
+        else:
+            filter_data = {"period": DashboardOverviewFilterForm.PERIOD_30_DAYS}
 
-
-        trend_data = (
-            feedback_qs.filter(created_at__gte=recent_cutoff)
-            .annotate(day=TruncDate("created_at"))
-            .values("day")
-            .annotate(total=Count("id", distinct=True), average_rating=Avg("rating_responses__rating"))
-            .order_by("day")
-        )
-
-        gender_breakdown = list(
-            feedback_qs.values("gender").annotate(total=Count("id", distinct=True)).order_by("-total")
-        )
-        distance_breakdown = list(
-            feedback_qs.values("distance").annotate(total=Count("id", distinct=True)).order_by("-total")
-        )
+        feedback_qs = filtered_dashboard_feedback_queryset(self.request.user, filter_data)
         rating_qs = RatingResponse.objects.filter(submission__in=feedback_qs)
-        category_breakdown = build_rating_category_chart_data(rating_qs)
-        received_service_breakdown = choice_breakdown(
+        active_sessions_qs = filtered_dashboard_sessions_queryset(self.request.user, filter_data)
+
+        total_submissions = feedback_qs.count()
+        average_rating = round(rating_qs.aggregate(avg=Avg("rating"))["avg"] or 0, 2)
+        facility_count = feedback_qs.values("facility_id").distinct().count()
+
+        rating_category_items, total_rating_responses = build_average_rating_chart_data(rating_qs)
+        trend_chart = build_feedback_volume_chart(feedback_qs, filter_data)
+        source_items = build_submission_sources_data(feedback_qs)
+
+        received_service_card = build_patient_experience_card(
             feedback_qs,
-            "received_service",
-            Feedback.receivedService.choices,
+            field_name="received_service",
+            title="Received All Services Needed",
+            choices=Feedback.receivedService.choices,
+            primary_value=Feedback.receivedService.YES,
+            label_overrides={
+                Feedback.receivedService.YES: "Yes",
+                Feedback.receivedService.PARTIALLY: "Partially",
+                Feedback.receivedService.NO: "No",
+            },
         )
-        payment_breakdown = choice_breakdown(
+        medicines_card = build_patient_experience_card(
             feedback_qs,
-            "payment",
-            Feedback.Payment.choices,
+            field_name="medicines",
+            title="Medicines Available",
+            choices=Feedback.MEDICINES.choices,
+            primary_value=Feedback.MEDICINES.YES,
+            label_overrides={
+                Feedback.MEDICINES.YES: "Yes",
+                Feedback.MEDICINES.NO_PHARMACY: "Buy at pharmacy",
+                Feedback.MEDICINES.NO_PRESCRIPTION: "Not prescribed",
+                Feedback.MEDICINES.NO: "Not available",
+            },
         )
-        medicines_breakdown = choice_breakdown(
+        revisit_card = build_patient_experience_card(
             feedback_qs,
-            "medicines",
-            Feedback.MEDICINES.choices,
+            field_name="revisit",
+            title="Would Return to Facility",
+            choices=Feedback.REVISIT.choices,
+            primary_value=Feedback.REVISIT.YES,
+            label_overrides={
+                Feedback.REVISIT.YES: "Yes",
+                Feedback.REVISIT.NOT_SURE: "Not sure",
+                Feedback.REVISIT.NO: "No",
+            },
         )
-        revisit_breakdown = choice_breakdown(
+        payment_card = build_patient_experience_card(
             feedback_qs,
-            "revisit",
-            Feedback.REVISIT.choices,
+            field_name="payment",
+            title="Paid Out of Pocket",
+            choices=Feedback.Payment.choices,
+            primary_value=Feedback.Payment.YES,
+            label_overrides={
+                Feedback.Payment.YES: "Yes",
+                Feedback.Payment.NO: "No",
+            },
         )
-        insurance_chart = build_single_choice_chart_data(
+
+        insurance_answered_total, insurance_breakdown = build_distribution_items(
             feedback_qs,
             "insurance",
             Feedback.INSURANCE.choices,
+            label_overrides={
+                value: ("No insurance used" if value == Feedback.INSURANCE.NONE else labels["short_label"])
+                for value, labels in INSURANCE_LABEL_DEFINITIONS.items()
+            },
         )
-        change_chart = build_multi_choice_chart_data(
+        change_answered_total, change_breakdown = build_distribution_items(
             feedback_qs,
             "change",
             Feedback.CHANGE.choices,
+            label_overrides={value: labels["short_label"] for value, labels in CHANGE_LABEL_DEFINITIONS.items()},
         )
-        insurance_breakdown = insurance_chart["items"]
-        change_breakdown = change_chart["items"]
-        reason_not_received_breakdown = choice_breakdown(
+        reason_answered_total, reason_not_received_breakdown = build_distribution_items(
             feedback_qs,
             "reason_not_received",
             Feedback.ReasonNotReceived.choices,
         )
-        facility_breakdown = list(
-            feedback_qs.values("facility__name").annotate(total=Count("id", distinct=True)).order_by("-total")[:10]
-        )
-        province_breakdown = list(
-            feedback_qs.values("facility__province").annotate(total=Count("id", distinct=True)).order_by("-total")
-        )  
+        facility_breakdown = build_facility_coverage(feedback_qs)
+        province_summary = build_province_summary(feedback_qs)
+
+        query_params = self.request.GET.copy()
+        query_params.pop("page", None)
 
         context.update(
             {
+                "filter_form": self.filter_form,
+                "current_filters": query_params.urlencode(),
+                "dashboard_reset_url": reverse_lazy("dashboard:home"),
                 "total_submissions": total_submissions,
-                "facility_count": Facility.objects.count(),
-                "average_rating": round(rating_qs.aggregate(avg=Avg("rating"))["avg"] or 0, 2),
-                "gender_breakdown": gender_breakdown,
-                "category_breakdown": category_breakdown,
-                "source_breakdown": source_breakdown,
-                "received_service_breakdown": received_service_breakdown,
-                "payment_breakdown": payment_breakdown,
-                "medicines_breakdown": medicines_breakdown,
-                "revisit_breakdown": revisit_breakdown,
+                "facility_count": facility_count,
+                "average_rating": average_rating,
+                "active_session_total": active_sessions_qs.count(),
+                "total_rating_responses": total_rating_responses,
+                "source_breakdown": source_items,
+                "source_total": sum(item["total"] for item in source_items),
+                "received_service_card": received_service_card,
+                "medicines_card": medicines_card,
+                "revisit_card": revisit_card,
+                "payment_card": payment_card,
+                "patient_experience_cards": [
+                    received_service_card,
+                    medicines_card,
+                    revisit_card,
+                    payment_card,
+                ],
                 "insurance_breakdown": insurance_breakdown,
-                "change_breakdown": change_breakdown,
-                "insurance_chart_summary": insurance_chart["summary"],
-                "insurance_chart_note": insurance_chart["note"],
-                "insurance_short_labels": [item.get("short_label", item["label"]) for item in insurance_breakdown],
-                "insurance_full_labels": [item.get("full_label", item["label"]) for item in insurance_breakdown],
-                "insurance_percentages": [item["percentage"] for item in insurance_breakdown],
-                "insurance_answered_total": insurance_chart["answered_total"],
-                "change_chart_summary": change_chart["summary"],
-                "change_chart_note": change_chart["note"],
-                "change_short_labels": [item.get("short_label", item["label"]) for item in change_breakdown],
-                "change_full_labels": [item.get("full_label", item["label"]) for item in change_breakdown],
-                "change_percentages": [item["percentage"] for item in change_breakdown],
-                "change_answered_total": change_chart["answered_total"],
-                "change_selection_total": change_chart["selection_total"],
-                "reason_not_received_breakdown": reason_not_received_breakdown,
-                "facility_breakdown": facility_breakdown,
-                "province_breakdown": province_breakdown,
-                "trend_labels": [item["day"].strftime("%Y-%m-%d") for item in trend_data],
-                "trend_totals": [item["total"] for item in trend_data],
-                "trend_ratings": [round(item["average_rating"] or 0, 2) for item in trend_data],
-                "gender_labels": [item["gender"] for item in gender_breakdown],
-                "gender_totals": [item["total"] for item in gender_breakdown],
-                "category_labels": [item["short_label"] for item in category_breakdown],
-                "category_full_labels": [item["full_label"] for item in category_breakdown],
-                "category_totals": [item["total"] for item in category_breakdown],
-                "source_labels": [item["label"] for item in source_breakdown],
-                "source_totals": [item["total"] for item in source_breakdown],
-                "received_service_labels": [item["label"] for item in received_service_breakdown],
-                "received_service_totals": [item["total"] for item in received_service_breakdown],
-                "payment_labels": [item["label"] for item in payment_breakdown],
-                "payment_totals": [item["total"] for item in payment_breakdown],
-                "medicines_labels": [item["label"] for item in medicines_breakdown],
-                "medicines_totals": [item["total"] for item in medicines_breakdown],
-                "revisit_labels": [item["label"] for item in revisit_breakdown],
-                "revisit_totals": [item["total"] for item in revisit_breakdown],
-                "insurance_labels": [item.get("short_label", item["label"]) for item in insurance_breakdown],
+                "insurance_chart_summary": f"{insurance_answered_total} respondents",
+                "insurance_chart_note": "",
+                "insurance_answered_total": insurance_answered_total,
+                "insurance_labels": [item["label"] for item in insurance_breakdown],
+                "insurance_full_labels": [INSURANCE_LABEL_DEFINITIONS.get(item["value"], {}).get("full_label", item["full_label"]) for item in insurance_breakdown],
                 "insurance_totals": [item["total"] for item in insurance_breakdown],
-                "change_labels": [item.get("short_label", item["label"]) for item in change_breakdown],
+                "insurance_percentages": [item["percentage"] for item in insurance_breakdown],
+                "change_breakdown": change_breakdown,
+                "change_chart_summary": f"{change_answered_total} respondents",
+                "change_chart_note": "",
+                "change_answered_total": change_answered_total,
+                "change_labels": [item["label"] for item in change_breakdown],
+                "change_full_labels": [CHANGE_LABEL_DEFINITIONS.get(item["value"], {}).get("full_label", item["full_label"]) for item in change_breakdown],
                 "change_totals": [item["total"] for item in change_breakdown],
+                "change_percentages": [item["percentage"] for item in change_breakdown],
+                "reason_not_received_breakdown": reason_not_received_breakdown,
+                "reason_not_received_answered_total": reason_answered_total,
+                "reason_labels": [item["label"] for item in reason_not_received_breakdown],
+                "reason_full_labels": [item["full_label"] for item in reason_not_received_breakdown],
+                "reason_totals": [item["total"] for item in reason_not_received_breakdown],
+                "reason_percentages": [item["percentage"] for item in reason_not_received_breakdown],
+                "facility_breakdown": facility_breakdown,
+                "province_summary": province_summary,
+                "trend_labels": trend_chart["labels"],
+                "trend_totals": trend_chart["totals"],
+                "category_labels": [item["short_label"] for item in rating_category_items],
+                "category_full_labels": [item["full_label"] for item in rating_category_items],
+                "category_averages": [item["average_rating"] for item in rating_category_items],
+                "category_totals": [item["total"] for item in rating_category_items],
                 "public_qr_total": feedback_qs.filter(submission_source=Feedback.SubmissionSource.QR_PUBLIC).count(),
                 "assisted_total": feedback_qs.filter(submission_source=Feedback.SubmissionSource.ASSISTED_CAPTURE).count(),
-                "active_session_total": Feedback.collection_session.field.related_model.objects.filter(status="active").count(),
-                "total_rating_responses": rating_qs.count(),
-                "average_ratings_per_submission": round((rating_qs.count() / total_submissions), 2) if total_submissions else 0,
             }
         )
         return context
