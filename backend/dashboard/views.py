@@ -133,6 +133,33 @@ CHANGE_LABEL_DEFINITIONS = {
     },
 }
 
+REASON_NOT_RECEIVED_LABEL_DEFINITIONS = {
+    Feedback.ReasonNotReceived.NOT_AVAILABLE: {
+        "short_label": "Health worker unavailable",
+        "full_label": "Health worker was not available",
+    },
+    Feedback.ReasonNotReceived.MEDICINE: {
+        "short_label": "Medicines out of stock",
+        "full_label": "Medicines were out of stock",
+    },
+    Feedback.ReasonNotReceived.EQUIPMENT: {
+        "short_label": "Lab/equipment unavailable",
+        "full_label": "Laboratory test or equipment not available",
+    },
+    Feedback.ReasonNotReceived.RETURN: {
+        "short_label": "Asked to return another day",
+        "full_label": "I was asked to return another day",
+    },
+    Feedback.ReasonNotReceived.REFERRAL: {
+        "short_label": "Referred to another facility",
+        "full_label": "I was referred to another facility",
+    },
+    Feedback.ReasonNotReceived.OTHER: {
+        "short_label": "Other",
+        "full_label": "Other",
+    },
+}
+
 INSURANCE_LABEL_DEFINITIONS = {
     Feedback.INSURANCE.NHIMA: {
         "short_label": "NHIMA",
@@ -737,6 +764,10 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
             feedback_qs,
             "reason_not_received",
             Feedback.ReasonNotReceived.choices,
+            label_overrides={
+                value: labels["short_label"]
+                for value, labels in REASON_NOT_RECEIVED_LABEL_DEFINITIONS.items()
+            },
         )
         facility_breakdown = build_facility_coverage(feedback_qs)
         province_summary = build_province_summary(feedback_qs)
@@ -785,7 +816,10 @@ class DashboardHomeView(DashboardAccessMixin, TemplateView):
                 "reason_not_received_breakdown": reason_not_received_breakdown,
                 "reason_not_received_answered_total": reason_answered_total,
                 "reason_labels": [item["label"] for item in reason_not_received_breakdown],
-                "reason_full_labels": [item["full_label"] for item in reason_not_received_breakdown],
+                "reason_full_labels": [
+                    REASON_NOT_RECEIVED_LABEL_DEFINITIONS.get(item["value"], {}).get("full_label", item["full_label"])
+                    for item in reason_not_received_breakdown
+                ],
                 "reason_totals": [item["total"] for item in reason_not_received_breakdown],
                 "reason_percentages": [item["percentage"] for item in reason_not_received_breakdown],
                 "facility_breakdown": facility_breakdown,
