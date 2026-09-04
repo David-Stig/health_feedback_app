@@ -111,6 +111,30 @@ class DashboardAccessTests(TestCase):
         self.assertEqual(entries[0].pk, latest_submission.pk)
         self.assertEqual(entries[-1].pk, older_submission.pk)
 
+    def test_feedback_list_filters_by_suggested_change(self):
+        matching_submission = self._create_submission(
+            self.facility_a,
+            rating_pairs=[(Feedback.Category.WAITING_TIME, 4, "")],
+            change=Feedback.CHANGE.MORE_MEDICINES,
+        )
+        self._create_submission(
+            self.facility_a,
+            rating_pairs=[(Feedback.Category.WAITING_TIME, 4, "")],
+            change=Feedback.CHANGE.MORE_WORKERS,
+        )
+        self.client.login(username="dash", password="secret123")
+
+        response = self.client.get(
+            reverse("dashboard:feedback_list"),
+            {"change": Feedback.CHANGE.MORE_MEDICINES},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [entry.pk for entry in response.context["feedback_entries"]],
+            [matching_submission.pk],
+        )
+
     def test_dashboard_user_export_is_scoped_to_assigned_facility(self):
         self.client.login(username="dash", password="secret123")
 

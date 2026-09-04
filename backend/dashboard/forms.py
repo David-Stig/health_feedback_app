@@ -96,6 +96,7 @@ class FeedbackFilterForm(forms.Form):
     category = forms.ChoiceField(required=False) 
     gender = forms.ChoiceField(required=False)
     rating = forms.ChoiceField(required=False)
+    change = forms.ChoiceField(required=False, label="Suggested change")
     submission_source = forms.ChoiceField(required=False)
     collection_session = forms.ModelChoiceField(queryset=Feedback.collection_session.field.related_model.objects.all(), required=False)
     date_from = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
@@ -112,6 +113,7 @@ class FeedbackFilterForm(forms.Form):
         self.fields["category"].choices = [("", "All categories")] + list(Feedback.Category.choices)
         self.fields["gender"].choices = [("", "All genders")] + list(Feedback.Gender.choices)
         self.fields["rating"].choices = [("", "All ratings")] + [(str(i), str(i)) for i in range(1, 6)]
+        self.fields["change"].choices = [("", "All suggested changes")] + list(Feedback.CHANGE.choices)
         submission_source_choices = [
             choice
             for choice in Feedback.SubmissionSource.choices

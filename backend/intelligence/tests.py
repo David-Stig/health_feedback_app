@@ -14,7 +14,10 @@ User = get_user_model()
 TEST_MEDIA_ROOT = tempfile.mkdtemp()
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+@override_settings(
+    MEDIA_ROOT=TEST_MEDIA_ROOT,
+    STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage",
+)
 class IntelligenceModuleTests(TestCase):
     def setUp(self):
         self.staff_user = User.objects.create_user(

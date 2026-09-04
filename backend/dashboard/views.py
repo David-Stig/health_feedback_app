@@ -419,6 +419,8 @@ def filtered_feedback_queryset(user, params):
         queryset = queryset.filter(rating_responses__category=params["category"]).distinct()
     if params.get("rating"):
         queryset = queryset.filter(rating_responses__rating=params["rating"]).distinct()
+    if params.get("change"):
+        queryset = queryset.filter(change=params["change"])
     if params.get("submission_source"):
         queryset = queryset.filter(submission_source=params["submission_source"])
     if params.get("collection_session"):

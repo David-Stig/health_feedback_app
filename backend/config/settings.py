@@ -46,7 +46,9 @@ TURNSTILE_VERIFY_URL = os.getenv(
     "TURNSTILE_VERIFY_URL",
     "https://challenges.cloudflare.com/turnstile/v0/siteverify",
 ).strip()
-TURNSTILE_ENABLED = bool(TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY)
+# Cloudflare challenges do not work reliably on local development hosts. Keep
+# verification enabled only outside Django's local debug environment.
+TURNSTILE_ENABLED = bool(TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY) and not DEBUG
 
 SECURE_SSL_REDIRECT = os.getenv("DJANGO_SECURE_SSL_REDIRECT", "False").lower() == "true"
 SESSION_COOKIE_SECURE = os.getenv("DJANGO_SESSION_COOKIE_SECURE", "False").lower() == "true"

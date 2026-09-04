@@ -221,6 +221,13 @@ class FeedbackSubmissionTests(TestCase):
         self.assertContains(response, "Please complete the security check.")
         self.assertEqual(Feedback.objects.count(), 0)
 
+    @override_settings(TURNSTILE_ENABLED=False, TURNSTILE_SITE_KEY="", TURNSTILE_SECRET_KEY="")
+    def test_local_submission_bypasses_turnstile_when_disabled(self):
+        response = self.client.post(self.facility_url, data=self._valid_payload())
+
+        self.assertRedirects(response, reverse("feedback:thank_you"))
+        self.assertEqual(Feedback.objects.count(), 1)
+
     @override_settings(TURNSTILE_ENABLED=True, TURNSTILE_SITE_KEY="site-key", TURNSTILE_SECRET_KEY="secret-key")
     @patch("feedback.views.verify_turnstile", return_value=(True, None))
     def test_submission_succeeds_when_turnstile_verification_passes(self, mocked_verify_turnstile):

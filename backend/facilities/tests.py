@@ -66,7 +66,11 @@ class PortAwareFacilityModelTests(TestCase):
         )
 
 
-@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT, SITE_URL="feedback.example.com")
+@override_settings(
+    MEDIA_ROOT=TEST_MEDIA_ROOT,
+    SITE_URL="feedback.example.com",
+    STATICFILES_STORAGE="django.contrib.staticfiles.storage.StaticFilesStorage",
+)
 class FacilityQrBulkRegenerationTests(TestCase):
     def setUp(self):
         self.staff_user = User.objects.create_user(
